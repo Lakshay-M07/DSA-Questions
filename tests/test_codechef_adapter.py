@@ -56,6 +56,34 @@ def test_parse_solution_page_extracts_source_and_language():
     assert language == "C++"
 
 
+def test_parse_solution_page_extracts_ace_editor_source():
+    html = """
+    <html><body><div class="ace_editor"><div class="ace_text-layer">
+      <div class="ace_line">#include &lt;iostream&gt;</div>
+      <div class="ace_line">int main() {</div>
+      <div class="ace_line">    return 0;</div>
+      <div class="ace_line">}</div>
+    </div></div></body></html>
+    """
+    source, language = parse_solution_page(html)
+    assert "#include <iostream>" in source
+    assert "int main()" in source
+    assert language == "C++"
+
+
+def test_parse_solution_page_extracts_codemirror_source():
+    html = """
+    <html><body><div class="CodeMirror-code">
+      <pre>def solve():</pre>
+      <pre>    return 42</pre>
+    </div></body></html>
+    """
+    source, language = parse_solution_page(html)
+    assert "def solve():" in source
+    assert "return 42" in source
+    assert language == "Unknown"
+
+
 def test_parse_problem_metadata_extracts_rating_and_tags():
     html = """
     <html><body>

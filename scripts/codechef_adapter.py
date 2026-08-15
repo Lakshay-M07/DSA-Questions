@@ -111,7 +111,6 @@ def parse_submission_list(html: str) -> list[CodeChefRawSubmission]:
             )
         )
 
-    # Keep one record per submission ID while preserving page order.
     seen: set[str] = set()
     unique: list[CodeChefRawSubmission] = []
     for item in results:
@@ -158,19 +157,60 @@ def _first_visible_interactable(elements):
 
 def _login(driver: webdriver.Chrome, username_or_email: str, password: str) -> None:
     driver.get(LOGIN_URL)
-    wait = WebDriverWait(driver, 30)
+    wait = WebDriverWait(driver, 35)
+    wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
 
-    # CodeChef's current login page contains hidden inputs as well as the
-    # visible "Username or Email" and "Password" controls. Selecting the
-    # first input[type=text] was therefore unreliable in headless Chrome.
-    username = wait.until(
-        EC.visibility_of_element_located(
-            (By.CSS_SELECTOR, 'input[placeholder*="Username or Email" i], input[placeholder*="Username" i], input[type="email"]')
+    def visible_inputs():
+        return [
+            x for x in driver.find_elements(By.CSS_SELECTOR, "input")
+            if x.is_displayed() and x.is_enabled()
+        ]
+
+    def input_description(x):
+        return " | ".join(
+            str(x.get_attribute(name) or "")
+            for name in ("type", "name", "id", "placeholder", "aria-label", "autocomplete")
         )
-    )
-    password_input = wait.until(
-        EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[type="password"]'))
-    )
+
+    # The login form has changed its attributes over time. Do not depend on
+    # one exact placeholder; inspect visible/enabled inputs and choose the
+    # username field by its semantic attributes, then the password field.
+    def find_username():
+        candidates = visible_inputs()
+        ranked = []
+        for x in candidates:
+            attrs = input_description(x).lower()
+            if x.get_attribute("type") == "password":
+                continue
+            score = 0
+            if "username" in attrs:
+                score += 10
+            if "email" in attrs:
+                score += 8
+            if "login" in attrs:
+                score += 5
+            if x.get_attribute("autocomplete") in ("username", "email"):
+                score += 10
+            ranked.append((score, x))
+        ranked.sort(key=lambda pair: pair[0], reverse=True)
+        return ranked[0][1] if ranked and ranked[0][0] > 0 else None
+
+    def find_password():
+        return _first_visible_interactable(
+            [x for x in visible_inputs() if x.get_attribute("type") == "password"]
+        )
+
+    try:
+        username = wait.until(lambda d: find_username())
+        password_input = wait.until(lambda d: find_password())
+    except TimeoutException as exc:
+        visible = [input_description(x) for x in visible_inputs()]
+        title = driver.title
+        url = driver.current_url
+        raise CodeChefAuthError(
+            "Could not locate the CodeChef login fields. "
+            f"URL={url!r}, title={title!r}, visible_inputs={visible!r}"
+        ) from exc
 
     try:
         username.click()
@@ -180,24 +220,9 @@ def _login(driver: webdriver.Chrome, username_or_email: str, password: str) -> N
         password_input.clear()
         password_input.send_keys(password)
     except ElementNotInteractableException as exc:
-        # Fall back to the first visible/enabled matching controls if CodeChef
-        # changes the exact placeholder structure.
-        username = _first_visible_interactable(
-            driver.find_elements(By.CSS_SELECTOR, 'input[placeholder*="Username" i], input[type="email"], input[type="text"]')
-        )
-        password_input = _first_visible_interactable(
-            driver.find_elements(By.CSS_SELECTOR, 'input[type="password"]')
-        )
-        if not username or not password_input:
-            raise CodeChefAuthError("Could not locate interactable CodeChef login fields.") from exc
-        username.click()
-        username.send_keys(username_or_email)
-        password_input.click()
-        password_input.send_keys(password)
+        raise CodeChefAuthError("CodeChef login fields were found but could not be interacted with.") from exc
 
-    # Prefer the actual login button when present; submitting the password
-    # field remains a fallback for older page variants.
-    buttons = driver.find_elements(By.CSS_SELECTOR, 'button, input[type="submit"]')
+    buttons = driver.find_elements(By.CSS_SELECTOR, "button, input[type='submit']")
     login_button = None
     for button in buttons:
         try:
@@ -216,7 +241,10 @@ def _login(driver: webdriver.Chrome, username_or_email: str, password: str) -> N
     try:
         wait.until(lambda d: "/login" not in d.current_url.lower())
     except TimeoutException as exc:
-        raise CodeChefAuthError("CodeChef login was not accepted. Check the credentials or whether an additional verification step is required.") from exc
+        raise CodeChefAuthError(
+            "CodeChef login did not navigate away from /login. "
+            "Credentials may be invalid or CodeChef may require an additional verification step."
+        ) from exc
 
 
 def fetch_recent_accepted(limit: int = 20) -> list[CodeChefRawSubmission]:

@@ -1,8 +1,6 @@
 """Authenticated CodeChef web adapter for GitHub Actions."""
 from __future__ import annotations
 
-import html
-import json
 import os
 import re
 import time
@@ -60,9 +58,11 @@ def _text(value: str) -> str:
 
 def _detect_language(text: str) -> str:
     t = text.lower()
-    # C++ must be checked before C. Include common C++ syntax that does not
-    # necessarily contain the literal string "c++" in the submission page.
-    if re.search(r"c\+\+|cpp|gnu\+\+|using\s+namespace\s+std|std::|\bcout\b|\bcin\b|#include\s*<[^>]*(vector|string|iostream|bits/)", t):
+    # C++ must be checked before C.
+    if re.search(
+        r"c\+\+|cpp|gnu\+\+|using\s+namespace\s+std|std::|\bcout\b|\bcin\b|#include\s*<[^>]*(vector|string|iostream|bits/)",
+        t,
+    ):
         return "C++"
     if re.search(r"javascript|node\.js|nodejs", t):
         return "JavaScript"
@@ -76,8 +76,8 @@ def _detect_language(text: str) -> str:
 
 
 def _extract_problem_id(href: str) -> str:
-    m = re.search(r"/problems/([^/?#]+)", href or "")
-    return m.group(1) if m else ""
+    match = re.search(r"/problems/([^/?#]+)", href or "")
+    return match.group(1) if match else ""
 
 
 def _extract_time(node) -> str:
@@ -92,44 +92,55 @@ def _extract_time(node) -> str:
 
 
 def _normalize_embedded_html(value: str) -> str:
-    return html.unescape(value.replace(r"\/", "/"))
+    # Do NOT html.unescape before BeautifulSoup parses the document. Doing so
+    # turns source such as `#include &lt;iostream&gt;` into an actual HTML tag,
+    # which destroys `<iostream>` from the extracted source code.
+    return value.replace(r"\/", "/")
 
 
 def _is_accepted_row(row_text: str) -> bool:
+    # Current CodeChef profile rows show a full-score accepted submission as
+    # `(100)` rather than the literal word `Accepted`.
     return bool(re.search(r"\bAccepted\b|\(\s*100(?:\.0+)?\s*\)", row_text, re.I))
 
 
 def parse_submission_list(html_text: str) -> list[CodeChefRawSubmission]:
     soup = BeautifulSoup(_normalize_embedded_html(html_text), "html.parser")
     results: list[CodeChefRawSubmission] = []
+
     for link in soup.select('a[href*="/viewsolution/"]'):
         href = link.get("href", "")
-        m = re.search(r"/viewsolution/(\d+)", href)
-        if not m:
+        match = re.search(r"/viewsolution/(\d+)", href)
+        if not match:
             continue
+
         row = link.find_parent("tr")
         if row is None:
             row = link.parent
             for _ in range(8):
                 if row is None:
                     break
-                txt = _text(row.get_text(" ", strip=True))
-                if row.select_one('a[href*="/problems/"]') or _is_accepted_row(txt):
+                text = _text(row.get_text(" ", strip=True))
+                if row.select_one('a[href*="/problems/"]') or _is_accepted_row(text):
                     break
                 row = row.parent
+
         row_text = _text(row.get_text(" ", strip=True)) if row else ""
         if not _is_accepted_row(row_text):
             continue
+
         problem_link = row.select_one('a[href*="/problems/"]') if row else None
         if not problem_link and link.parent:
             problem_link = link.parent.select_one('a[href*="/problems/"]')
+
         problem_id = _extract_problem_id(problem_link.get("href", "") if problem_link else "")
         if not problem_id:
             continue
+
         solution_url = href if href.startswith("http") else BASE_URL + href
         results.append(
             CodeChefRawSubmission(
-                submission_id=m.group(1),
+                submission_id=match.group(1),
                 problem_id=problem_id,
                 title=_text(problem_link.get_text(" ", strip=True)) if problem_link else problem_id,
                 language=_detect_language(row_text),
@@ -137,6 +148,7 @@ def parse_submission_list(html_text: str) -> list[CodeChefRawSubmission]:
                 accepted_at=_extract_time(row),
             )
         )
+
     seen: set[str] = set()
     unique: list[CodeChefRawSubmission] = []
     for item in results:
@@ -149,15 +161,28 @@ def parse_submission_list(html_text: str) -> list[CodeChefRawSubmission]:
 def _text_preserve(node) -> str:
     if not node:
         return ""
+    # BeautifulSoup decodes HTML entities while preserving escaped source
+    # characters, so `<iostream>` remains part of the source text.
     return node.get_text("", strip=False).replace("\r\n", "\n").strip()
 
 
 def _source_candidates_from_soup(soup: BeautifulSoup) -> list[str]:
     selectors = [
-        "pre", "pre code", "textarea", ".CodeMirror-code", ".CodeMirror-code pre",
-        ".ace_text-layer", ".ace_content", ".monaco-editor .view-lines", ".monaco-editor",
-        "[data-testid*='code']", "[class*='source-code']", "[class*='source_code']",
-        "[class*='code-content']", "[class*='code_content']", "[class*='highlight']",
+        "pre",
+        "pre code",
+        "textarea",
+        ".CodeMirror-code",
+        ".CodeMirror-code pre",
+        ".ace_text-layer",
+        ".ace_content",
+        ".monaco-editor .view-lines",
+        ".monaco-editor",
+        "[data-testid*='code']",
+        "[class*='source-code']",
+        "[class*='source_code']",
+        "[class*='code-content']",
+        "[class*='code_content']",
+        "[class*='highlight']",
     ]
     candidates: list[str] = []
     seen: set[str] = set()
@@ -222,6 +247,7 @@ def _extract_source_from_rendered_driver(driver) -> str:
     source = _choose_source(candidates())
     if source:
         return source
+
     for frame in driver.find_elements(By.TAG_NAME, "iframe"):
         try:
             driver.switch_to.frame(frame)
@@ -255,7 +281,6 @@ def _difficulty_from_rating(rating: int | None):
 
 
 def _find_rating(raw_html: str, page_text: str) -> int | None:
-    sources = [_normalize_embedded_html(raw_html), page_text]
     patterns = [
         r"difficultyRating\s*[:=]\s*[\"']?(\d{2,4})",
         r"difficulty[_-]?rating\s*[:=]\s*[\"']?(\d{2,4})",
@@ -263,7 +288,7 @@ def _find_rating(raw_html: str, page_text: str) -> int | None:
         r"\"rating\"\s*:\s*(\d{2,4})",
         r"difficulty\s*rating[^0-9]{0,40}(\d{2,4})",
     ]
-    for source in sources:
+    for source in (raw_html, page_text):
         for pattern in patterns:
             match = re.search(pattern, source, re.I)
             if match:
@@ -279,8 +304,7 @@ def _extract_tags(soup: BeautifulSoup, raw_html: str) -> tuple[str, ...]:
         label = _text(link.get_text(" ", strip=True))
         if label and len(label) <= 60 and label.lower() not in {x.lower() for x in tags}:
             tags.append(label)
-    # Some CodeChef pages expose tags only inside JSON/escaped page data.
-    for match in re.findall(r"/tags/([A-Za-z0-9_-]+)", _normalize_embedded_html(raw_html)):
+    for match in re.findall(r"/tags/([A-Za-z0-9_-]+)", raw_html):
         label = match.replace("-", " ").replace("_", " ").strip()
         if label and label.lower() not in {x.lower() for x in tags}:
             tags.append(label.title())
@@ -330,10 +354,10 @@ def _credentials():
 
 
 def _first_visible(elements):
-    for x in elements:
+    for element in elements:
         try:
-            if x.is_displayed() and x.is_enabled():
-                return x
+            if element.is_displayed() and element.is_enabled():
+                return element
         except Exception:
             pass
     return None
@@ -345,38 +369,69 @@ def _login(driver, username, password):
     wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
 
     def visible_inputs():
-        return [x for x in driver.find_elements(By.CSS_SELECTOR, "input") if x.is_displayed() and x.is_enabled()]
+        return [
+            x
+            for x in driver.find_elements(By.CSS_SELECTOR, "input")
+            if x.is_displayed() and x.is_enabled()
+        ]
 
-    def desc(x):
-        return " ".join(str(x.get_attribute(a) or "") for a in ("type", "name", "id", "placeholder", "aria-label", "autocomplete")).lower()
+    def desc(element):
+        return " ".join(
+            str(element.get_attribute(a) or "")
+            for a in ("type", "name", "id", "placeholder", "aria-label", "autocomplete")
+        ).lower()
 
     def username_field():
         ranked = []
-        for x in visible_inputs():
-            if (x.get_attribute("type") or "").lower() == "password":
+        for element in visible_inputs():
+            if (element.get_attribute("type") or "").lower() == "password":
                 continue
-            a = desc(x)
-            score = (10 if "username" in a else 0) + (8 if "email" in a else 0) + (5 if "login" in a else 0) + (10 if x.get_attribute("autocomplete") in ("username", "email") else 0)
-            ranked.append((score, x))
-        ranked.sort(key=lambda z: z[0], reverse=True)
+            attributes = desc(element)
+            score = (
+                (10 if "username" in attributes else 0)
+                + (8 if "email" in attributes else 0)
+                + (5 if "login" in attributes else 0)
+                + (10 if element.get_attribute("autocomplete") in ("username", "email") else 0)
+            )
+            ranked.append((score, element))
+        ranked.sort(key=lambda item: item[0], reverse=True)
         return ranked[0][1] if ranked and ranked[0][0] else None
 
     try:
         user = wait.until(lambda d: username_field())
-        pw = wait.until(lambda d: _first_visible([x for x in visible_inputs() if (x.get_attribute("type") or "").lower() == "password"]))
+        password_field = wait.until(
+            lambda d: _first_visible(
+                [x for x in visible_inputs() if (x.get_attribute("type") or "").lower() == "password"]
+            )
+        )
     except TimeoutException as exc:
-        raise CodeChefAuthError(f"Could not locate CodeChef login fields. URL={driver.current_url!r}, title={driver.title!r}") from exc
+        raise CodeChefAuthError(
+            f"Could not locate CodeChef login fields. URL={driver.current_url!r}, title={driver.title!r}"
+        ) from exc
+
     try:
-        user.click(); user.clear(); user.send_keys(username)
-        pw.click(); pw.clear(); pw.send_keys(password)
+        user.click()
+        user.clear()
+        user.send_keys(username)
+        password_field.click()
+        password_field.clear()
+        password_field.send_keys(password)
     except ElementNotInteractableException as exc:
         raise CodeChefAuthError("CodeChef login fields could not be interacted with") from exc
+
     buttons = driver.find_elements(By.CSS_SELECTOR, "button, input[type='submit']")
-    button = _first_visible([b for b in buttons if re.search(r"log\s*in|sign\s*in", _text(b.text or b.get_attribute("value") or ""), re.I)])
+    button = _first_visible(
+        [
+            b
+            for b in buttons
+            if re.search(r"log\s*in|sign\s*in", _text(b.text or b.get_attribute("value") or ""), re.I)
+        ]
+    )
     if button:
         button.click()
     else:
-        pw.submit()
+        password_field.submit()
+
     try:
         wait.until(lambda d: "/login" not in d.current_url.lower())
     except TimeoutException as exc:
@@ -389,7 +444,9 @@ def _load_profile_submissions(driver, username: str, limit: int) -> list[CodeChe
         driver.get(url)
         WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
         try:
-            WebDriverWait(driver, 12).until(lambda d: len(d.find_elements(By.CSS_SELECTOR, 'a[href*="/viewsolution/"]')) > 0)
+            WebDriverWait(driver, 12).until(
+                lambda d: len(d.find_elements(By.CSS_SELECTOR, 'a[href*="/viewsolution/"]')) > 0
+            )
         except TimeoutException:
             pass
         items = parse_submission_list(driver.page_source)
@@ -417,9 +474,11 @@ def fetch_recent_accepted_details(limit: int = 20) -> list[CodeChefSubmissionDet
         _login(driver, username, password)
         submissions = _load_profile_submissions(driver, username, limit)
         details: list[CodeChefSubmissionDetail] = []
+
         for raw in submissions:
             driver.get(raw.source_url)
             WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+
             source = ""
             for _ in range(10):
                 source = _extract_source_from_rendered_driver(driver)
@@ -427,12 +486,13 @@ def fetch_recent_accepted_details(limit: int = 20) -> list[CodeChefSubmissionDet
                     break
                 time.sleep(1.5)
             if not source:
-                raise CodeChefAuthError(f"Could not extract source code from submission {raw.submission_id}; url={driver.current_url!r}")
+                raise CodeChefAuthError(
+                    f"Could not extract source code from submission {raw.submission_id}; url={driver.current_url!r}"
+                )
 
-            # The submission table is authoritative for the selected compiler.
-            # Never downgrade C++ to C merely because the source contains C-like syntax.
-            language = raw.language if raw.language != "Unknown" else _detect_language(source)
-            if language == "C" and _detect_language(source) == "C++":
+            detected = _detect_language(source)
+            language = raw.language if raw.language != "Unknown" else detected
+            if language == "C" and detected == "C++":
                 language = "C++"
 
             driver.get(f"{BASE_URL}/problems/{quote(raw.problem_id)}")
@@ -441,6 +501,7 @@ def fetch_recent_accepted_details(limit: int = 20) -> list[CodeChefSubmissionDet
             metadata = parse_problem_metadata(problem_html)
             title = extract_problem_title(problem_html, raw.title or raw.problem_id)
             details.append(CodeChefSubmissionDetail(raw, source, language, metadata, title))
+
         return details
     finally:
         driver.quit()
@@ -458,25 +519,25 @@ def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
             driver.get(f"{RECENT_USER_URL}?user_handle={quote(username)}&page={page}")
             WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
             items = parse_submission_list(driver.page_source)
-            new = [x for x in items if x.submission_id not in seen]
-            if not new:
+            new_items = [item for item in items if item.submission_id not in seen]
+            if not new_items:
                 break
-            for item in new:
+
+            for item in new_items:
                 seen.add(item.submission_id)
-                lang = item.language
-                if lang == "Unknown":
+                language = item.language
+                if language == "Unknown":
                     driver.get(item.source_url)
                     WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
                     for _ in range(10):
                         source = _extract_source_from_rendered_driver(driver)
                         if source:
-                            lang = _detect_language(source)
+                            language = _detect_language(source)
                             break
                         time.sleep(1.0)
-                if lang == "C" and source if False else False:
-                    pass
-                if lang != "Unknown":
-                    keys.add(f"codechef::{item.problem_id}::{lang.lower()}")
+                if language != "Unknown":
+                    keys.add(f"codechef::{item.problem_id}::{language.lower()}")
+
         if not keys:
             for item in _load_profile_submissions(driver, username, max_pages):
                 if item.language != "Unknown":

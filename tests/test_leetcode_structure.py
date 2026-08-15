@@ -41,5 +41,3 @@ def test_leetcode_problem_readme_contains_metadata():
     assert "**Question ID:** `1`" in readme
     assert "Given an array of integers." in readme
     assert "print('ok')" in readme
-
-# Re-run full wrapper verification after the import compatibility fix.

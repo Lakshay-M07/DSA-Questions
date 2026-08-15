@@ -130,16 +130,14 @@ def parse_submission_list(html: str) -> list[CodeChefRawSubmission]:
         accepted_at = _extract_time(node)
 
         source_url = solution_href if solution_href.startswith("http") else f"{BASE_URL}{solution_href}"
-        results.append(
-            CodeChefRawSubmission(
-                submission_id=submission_id,
-                problem_id=problem_id,
-                title=title,
-                language=language,
-                source_url=source_url,
-                accepted_at=accepted_at,
-            )
-        )
+        results.append(CodeChefRawSubmission(
+            submission_id=submission_id,
+            problem_id=problem_id,
+            title=title,
+            language=language,
+            source_url=source_url,
+            accepted_at=accepted_at,
+        ))
 
     seen: set[str] = set()
     unique: list[CodeChefRawSubmission] = []
@@ -168,9 +166,6 @@ def _text_preserve(node) -> str:
 def _difficulty_from_rating(rating: int | None) -> tuple[str | None, str | None]:
     if rating is None:
         return None, None
-    # CodeChef's own practice material groups roughly 0-1000 as beginner,
-    # 1000-1800 as intermediate, and 1800+ as advanced. We expose the
-    # requested Easy/Medium/Hard scale while retaining the numeric rating.
     if rating <= 1000:
         return "Easy", "codechef_official_rating_mapping"
     if rating <= 1800:
@@ -179,10 +174,8 @@ def _difficulty_from_rating(rating: int | None) -> tuple[str | None, str | None]
 
 
 def parse_problem_metadata(html: str) -> CodeChefProblemMetadata:
-    """Extract CodeChef difficulty rating and visible topic tags when present."""
     soup = BeautifulSoup(html, "html.parser")
     page_text = _text(soup.get_text(" ", strip=True))
-
     rating = None
     patterns = (
         r"difficulty\s*rating[^0-9]{0,20}(\d{2,4})",
@@ -236,16 +229,10 @@ def _login(driver: webdriver.Chrome, username_or_email: str, password: str) -> N
     wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
 
     def visible_inputs():
-        return [
-            x for x in driver.find_elements(By.CSS_SELECTOR, "input")
-            if x.is_displayed() and x.is_enabled()
-        ]
+        return [x for x in driver.find_elements(By.CSS_SELECTOR, "input") if x.is_displayed() and x.is_enabled()]
 
     def input_description(x):
-        return " | ".join(
-            str(x.get_attribute(name) or "")
-            for name in ("type", "name", "id", "placeholder", "aria-label", "autocomplete")
-        )
+        return " | ".join(str(x.get_attribute(name) or "") for name in ("type", "name", "id", "placeholder", "aria-label", "autocomplete"))
 
     def find_username():
         ranked = []
@@ -267,27 +254,18 @@ def _login(driver: webdriver.Chrome, username_or_email: str, password: str) -> N
         return ranked[0][1] if ranked and ranked[0][0] > 0 else None
 
     def find_password():
-        return _first_visible_interactable(
-            [x for x in visible_inputs() if x.get_attribute("type") == "password"]
-        )
+        return _first_visible_interactable([x for x in visible_inputs() if x.get_attribute("type") == "password"])
 
     try:
         username = wait.until(lambda d: find_username())
         password_input = wait.until(lambda d: find_password())
     except TimeoutException as exc:
         visible = [input_description(x) for x in visible_inputs()]
-        raise CodeChefAuthError(
-            "Could not locate the CodeChef login fields. "
-            f"URL={driver.current_url!r}, title={driver.title!r}, visible_inputs={visible!r}"
-        ) from exc
+        raise CodeChefAuthError(f"Could not locate the CodeChef login fields. URL={driver.current_url!r}, title={driver.title!r}, visible_inputs={visible!r}") from exc
 
     try:
-        username.click()
-        username.clear()
-        username.send_keys(username_or_email)
-        password_input.click()
-        password_input.clear()
-        password_input.send_keys(password)
+        username.click(); username.clear(); username.send_keys(username_or_email)
+        password_input.click(); password_input.clear(); password_input.send_keys(password)
     except ElementNotInteractableException as exc:
         raise CodeChefAuthError("CodeChef login fields were found but could not be interacted with.") from exc
 
@@ -309,10 +287,7 @@ def _login(driver: webdriver.Chrome, username_or_email: str, password: str) -> N
     try:
         wait.until(lambda d: "/login" not in d.current_url.lower())
     except TimeoutException as exc:
-        raise CodeChefAuthError(
-            "CodeChef login did not navigate away from /login. Credentials may be invalid "
-            "or CodeChef may require an additional verification step."
-        ) from exc
+        raise CodeChefAuthError("CodeChef login did not navigate away from /login. Credentials may be invalid or CodeChef may require an additional verification step.") from exc
 
 
 def _credentials() -> tuple[str, str]:
@@ -336,7 +311,6 @@ def fetch_recent_accepted(limit: int = 20) -> list[CodeChefRawSubmission]:
 
 
 def fetch_recent_accepted_details(limit: int = 20) -> list[CodeChefSubmissionDetail]:
-    """Fetch recent Accepted submissions and their submitted source code."""
     username, password = _credentials()
     driver = build_driver()
     try:
@@ -358,7 +332,6 @@ def _fetch_details_with_driver(driver: webdriver.Chrome, submissions: list[CodeC
         language = page_language if page_language != "Unknown" else item.language
         if not source:
             raise CodeChefAuthError(f"Could not extract source code from CodeChef submission {item.submission_id}.")
-
         driver.get(f"{BASE_URL}/problems/{quote(item.problem_id)}")
         WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
         metadata = parse_problem_metadata(driver.page_source)
@@ -367,10 +340,13 @@ def _fetch_details_with_driver(driver: webdriver.Chrome, submissions: list[CodeC
 
 
 def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
-    """Read paginated recent-submission pages and return accepted problem-language keys.
+    """Read accepted submissions for the account without downloading source code.
 
-    This is used only by the one-time bootstrap so existing CodeChef solutions
-    are marked as seen without downloading or committing their source.
+    CodeChef's authenticated user profile is the same source used by the
+    successful recent-submissions/source tests. We paginate that profile and
+    use the recent/user endpoint only as a fallback if the profile returns no
+    submission rows. This avoids creating a false empty baseline when the
+    recent/user page has changed its HTML/API rendering.
     """
     username, password = _credentials()
     driver = build_driver()
@@ -378,8 +354,13 @@ def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
         _login(driver, username, password)
         keys: set[str] = set()
         seen_submission_ids: set[str] = set()
+
+        # Primary source: authenticated profile, which is already proven to
+        # work for the CodeChef source-extraction workflow.
         for page in range(max_pages):
-            url = f"{RECENT_USER_URL}?user_handle={quote(username)}&page={page}"
+            url = f"{BASE_URL}/users/{quote(username)}"
+            if page:
+                url += f"?page={page}"
             driver.get(url)
             WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
             items = parse_submission_list(driver.page_source)
@@ -388,7 +369,24 @@ def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
                 break
             for item in new_items:
                 seen_submission_ids.add(item.submission_id)
-                keys.add(f"codechef::{item.problem_id}::{item.language.lower()}")
+                if item.problem_id and item.language:
+                    keys.add(f"codechef::{item.problem_id}::{item.language.lower()}")
+
+        # Safety fallback: if the profile yielded nothing, try CodeChef's
+        # recent/user view rather than accepting an empty baseline.
+        if not keys:
+            for page in range(max_pages):
+                url = f"{RECENT_USER_URL}?user_handle={quote(username)}&page={page}"
+                driver.get(url)
+                WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+                items = parse_submission_list(driver.page_source)
+                new_items = [x for x in items if x.submission_id not in seen_submission_ids]
+                if not new_items:
+                    break
+                for item in new_items:
+                    seen_submission_ids.add(item.submission_id)
+                    if item.problem_id and item.language:
+                        keys.add(f"codechef::{item.problem_id}::{item.language.lower()}")
         return keys
     finally:
         driver.quit()

@@ -43,6 +43,23 @@ def _text(node) -> str:
     return " ".join(node.get_text(" ", strip=True).split()) if node else ""
 
 
+def _contains_language(text: str, language: str) -> bool:
+    """Match programming-language names without breaking names like C++."""
+    if language == "C++":
+        return bool(re.search(r"(?<![A-Za-z0-9])C\+\+(?![A-Za-z0-9])", text, re.I))
+    if language == "C":
+        return bool(re.search(r"(?<![A-Za-z0-9])C(?![A-Za-z0-9+])", text, re.I))
+    return bool(re.search(rf"(?<![A-Za-z0-9]){re.escape(language)}(?![A-Za-z0-9])", text, re.I))
+
+
+def _detect_language(text: str) -> str:
+    # C++ must be checked before C because C is a substring of C++.
+    for language in ("C++", "Python", "JavaScript", "Java", "C"):
+        if _contains_language(text, language):
+            return language
+    return ""
+
+
 def parse_submission_list(html: str) -> list[CodeChefRawSubmission]:
     """Parse submission rows/links without requiring a live browser.
 
@@ -95,11 +112,7 @@ def parse_submission_list(html: str) -> list[CodeChefRawSubmission]:
             problem_link = row.select_one('a[href*="/problems/"]')
             title = _text(problem_link) or problem_id
 
-        language = ""
-        for lang in ("C++", "C", "Python", "Java", "JavaScript"):
-            if re.search(rf"\b{re.escape(lang)}\b", row_text, re.I):
-                language = lang
-                break
+        language = _detect_language(row_text)
 
         results.append(
             CodeChefRawSubmission(
@@ -124,12 +137,7 @@ def parse_solution_page(html: str) -> tuple[str, str]:
     candidates = soup.select("pre, code, textarea")
     source = max((_text_preserve(c) for c in candidates), key=len, default="")
 
-    language = ""
-    page_text = _text(soup)
-    for candidate in ("C++", "C", "Python", "JavaScript", "Java"):
-        if re.search(rf"\b{re.escape(candidate)}\b", page_text, re.I):
-            language = candidate
-            break
+    language = _detect_language(_text(soup))
     return source, language
 
 

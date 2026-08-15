@@ -16,5 +16,24 @@
     "difficulty_rating": null,
     "source_hash": "f7aa0018431eb5dc41e388264a93bd7974afeda37deb781f28935cdc646fac0e",
     "solution_path": "CodeChef/C++/Array/Easy/DSACPR45/DSACPR45.cpp"
+  },
+  "leetcode::1::c++": {
+    "platform": "LeetCode",
+    "problem_id": "1",
+    "title": "Two Sum",
+    "language": "C++",
+    "source": "#include <vector>\n#include <unordered_map>\n\nclass Solution {\npublic:\n    std::vector<int> twoSum(std::vector<int>& nums, int target) {\n        // Use an unordered_map to store values and their corresponding indices: {value: index}\n        std::unordered_map<int, int> num_map;\n        \n        for (int i = 0; i < nums.size(); ++i) {\n            int complement = target - nums[i];\n            \n            // Check if the required complement has already been seen\n            if (num_map.find(complement) != num_map.end()) {\n                // Return the index of the complement and the current index\n                return {num_map[complement], i};\n            }\n            \n            // Store the current value and its index in the map\n            num_map[nums[i]] = i;\n        }\n        \n        // Per constraints, a solution always exists, so this part is never reached\n        return {};\n    }\n};",
+    "accepted_at": "1786818004",
+    "difficulty": "Easy",
+    "difficulty_source": "leetcode_question_metadata",
+    "primary_category": "Array",
+    "tags": [
+      "Array",
+      "Hash Table"
+    ],
+    "submission_id": "2108126233",
+    "difficulty_rating": null,
+    "source_hash": "84faffd26b63d6416e4356cb143d91558dae9dd311f1368210a1c74c485ed5d4",
+    "solution_path": "LeetCode/C++/Array/Easy/1-two-sum/1-two-sum.cpp"
   }
 }

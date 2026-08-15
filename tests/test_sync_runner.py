@@ -24,8 +24,9 @@ def test_sync_runner_import_and_codechef_path():
         / "C++"
         / "Array"
         / "Easy"
+        / "DSACPR45"
         / "DSACPR45.cpp"
     )
 
 
-# Trigger the one-time end-to-end workflow after the runner import fix.
+# Trigger the one-time end-to-end workflow after the runner import/path fixes.

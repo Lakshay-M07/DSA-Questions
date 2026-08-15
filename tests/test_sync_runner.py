@@ -29,4 +29,4 @@ def test_sync_runner_import_and_codechef_path():
     )
 
 
-# Trigger the one-time end-to-end workflow after the runner import/path fixes.
+# Trigger the one-time end-to-end workflow for the live problem-page diagnostic.

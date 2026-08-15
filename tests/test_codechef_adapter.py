@@ -17,6 +17,33 @@ def test_parse_submission_list_keeps_only_accepted():
     assert item.source_url.endswith("/viewsolution/123456789")
 
 
+def test_parse_current_codechef_profile_row_with_score_100():
+    html = """
+    <table><tbody><tr>
+      <td>12:30 PM 13/08/26</td>
+      <td><a href="/problems/DSACPR39">DSACPR39</a></td>
+      <td>(100)</td>
+      <td>C++</td>
+      <td><a class="centered" href="/viewsolution/1342067959">Explain</a></td>
+    </tr></tbody></table>
+    """
+    submissions = parse_submission_list(html)
+    assert len(submissions) == 1
+    item = submissions[0]
+    assert item.submission_id == "1342067959"
+    assert item.problem_id == "DSACPR39"
+    assert item.language == "C++"
+
+
+def test_parse_escaped_recent_user_markup():
+    html = r'''<table><tbody><tr><td><a href="/problems/DSACPR38">DSACPR38</a></td><td>(100)</td><td>C++</td><td><a href="/viewsolution/1342054793">Explain</a></td></tr></tbody></table>'''
+    submissions = parse_submission_list(html)
+    assert len(submissions) == 1
+    assert submissions[0].submission_id == "1342054793"
+    assert submissions[0].problem_id == "DSACPR38"
+    assert submissions[0].language == "C++"
+
+
 def test_parse_solution_page_extracts_source_and_language():
     html = """
     <html><body><div>Language: C++</div>

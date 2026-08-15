@@ -29,4 +29,4 @@ def test_sync_runner_import_and_codechef_path():
     )
 
 
-# Trigger the one-time full sync after the unavailable-problem fallback fix.
+# Trigger the final end-to-end verification after the migration-push fix.

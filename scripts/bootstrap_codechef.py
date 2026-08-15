@@ -10,7 +10,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scripts.codechef_adapter import fetch_all_accepted_keys
+from codechef_adapter import fetch_all_accepted_keys
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"

@@ -69,7 +69,7 @@ jobs:
           CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
           CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
           HACKERRANK_SESSION: ${{ secrets.HACKERRANK_SESSION }}
-        run: python scripts/sync_submissions.py
+        run: python scripts/sync_runner.py
 
       - name: Verify repository state
         run: git status --short

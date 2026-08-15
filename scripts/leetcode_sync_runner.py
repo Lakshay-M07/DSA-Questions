@@ -11,8 +11,14 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import scripts.codechef_adapter as codechef_adapter
 import scripts.sync_runner as base
 from scripts.problem_readme import _node_to_markdown, build_problem_readme
+
+# sync_submissions historically imported this adapter as a top-level module.
+# Register the package module under that name so the module-mode runner remains
+# compatible without changing the already-tested CodeChef adapter itself.
+sys.modules.setdefault("codechef_adapter", codechef_adapter)
 
 sync = base.sync
 

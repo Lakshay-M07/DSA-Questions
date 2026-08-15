@@ -60,19 +60,24 @@ def _fetch_problem_descriptions(problem_ids: Iterable[str]) -> None:
         driver.quit()
 
 
+# The existing CodeChef adapter continues to handle authentication, accepted
+# submissions, source extraction, title, difficulty, and tags. This runner only
+# adds the problem-statement/documentation layer around that adapter.
 _original_fetch_details = codechef.fetch_recent_accepted_details
 
 
 def fetch_recent_accepted_details(limit: int = 20):
-    details = _original_fetch_details(limit)
-    _fetch_problem_descriptions(detail.raw.problem_id for detail in details)
-    return details
+    return _original_fetch_details(limit)
 
 
 codechef.fetch_recent_accepted_details = fetch_recent_accepted_details
 
 
 def write_solution(submission: sync.Submission) -> Path:
+    # Only fetch a statement for a submission that survived duplicate/baseline
+    # filtering and is actually going to be written to the repository.
+    _fetch_problem_descriptions([submission.problem_id])
+
     path = solution_path(submission)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(submission.source.rstrip() + "\n", encoding="utf-8")

@@ -114,9 +114,67 @@ def _text_preserve(node) -> str:
     if not node: return ""
     return node.get_text("", strip=False).replace("\r\n", "\n").strip()
 
+def _source_candidates_from_soup(soup: BeautifulSoup) -> list[str]:
+    selectors = [
+        "pre", "pre code", "textarea", ".CodeMirror-code", ".CodeMirror-code pre",
+        ".ace_text-layer", ".ace_content", ".monaco-editor .view-lines", ".monaco-editor",
+        "[data-testid*='code']", "[class*='source-code']", "[class*='source_code']",
+        "[class*='code-content']", "[class*='code_content']", "[class*='highlight']",
+    ]
+    candidates, seen = [], set()
+    for selector in selectors:
+        for node in soup.select(selector):
+            value = _text_preserve(node)
+            if len(value) < 10 or value in seen: continue
+            seen.add(value); candidates.append(value)
+    return candidates
+
+def _choose_source(candidates: list[str]) -> str:
+    if not candidates: return ""
+    def score(value: str) -> tuple[int, int]:
+        lines = value.splitlines()
+        markers = sum(1 for line in lines if re.search(
+            r"(#include|#define|using\s+namespace|int\s+main|void\s+main|public\s+static|import\s+|from\s+\w+\s+import|def\s+\w+|console\.log|System\.out|return\b|\{\s*$|;\s*$)", line))
+        ui_words = len(re.findall(r"\b(submit|solution|problem|contest|codechef|login|accepted|language)\b", value, re.I))
+        return (markers * 100 - ui_words * 5, len(value))
+    return max(candidates, key=score)
+
+def _extract_source_from_rendered_driver(driver) -> str:
+    def candidates() -> list[str]:
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        values = _source_candidates_from_soup(soup)
+        try:
+            values.extend(driver.execute_script("""
+                const selectors = ['pre','pre code','textarea','.CodeMirror-code','.CodeMirror-code pre',
+                  '.ace_text-layer','.ace_content','.monaco-editor .view-lines','.monaco-editor',
+                  '[data-testid*="code"]','[class*="source-code"]','[class*="source_code"]',
+                  '[class*="code-content"]','[class*="code_content"]','[class*="highlight"]'];
+                const out=[];
+                for (const selector of selectors) for (const el of document.querySelectorAll(selector)) {
+                  const text=el.value || el.innerText || el.textContent || '';
+                  if (text && text.trim().length >= 10) out.push(text);
+                }
+                return out;
+            """) or [])
+        except Exception:
+            pass
+        return [str(x).strip() for x in values if str(x).strip()]
+    source = _choose_source(candidates())
+    if source: return source
+    for frame in driver.find_elements(By.TAG_NAME, "iframe"):
+        try:
+            driver.switch_to.frame(frame)
+            source = _choose_source(candidates())
+            driver.switch_to.default_content()
+            if source: return source
+        except Exception:
+            try: driver.switch_to.default_content()
+            except Exception: pass
+    return ""
+
 def parse_solution_page(html: str) -> tuple[str, str]:
     soup = BeautifulSoup(html, "html.parser")
-    source = max((_text_preserve(x) for x in soup.select("pre, code, textarea")), key=len, default="")
+    source = _choose_source(_source_candidates_from_soup(soup))
     page_text = soup.get_text(" ", strip=True)
     return source, _detect_language(_text(page_text))
 
@@ -191,25 +249,16 @@ def _login(driver, username, password):
     except TimeoutException as exc: raise CodeChefAuthError("CodeChef login did not complete") from exc
 
 def _load_profile_submissions(driver, username: str, limit: int) -> list[CodeChefRawSubmission]:
-    """Load the live profile submission table with a DOM-aware wait and retries."""
     url = f"{BASE_URL}/users/{quote(username)}"
-    last_count = 0
     for attempt in range(3):
         driver.get(url)
         WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
         try:
-            WebDriverWait(driver, 12).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, 'a[href*="/viewsolution/"]')) > 0
-            )
-        except TimeoutException:
-            pass
-        html = driver.page_source
-        items = parse_submission_list(html)
-        last_count = len(items)
-        if items:
-            return items[:limit]
-        if attempt < 2:
-            time.sleep(2)
+            WebDriverWait(driver, 12).until(lambda d: len(d.find_elements(By.CSS_SELECTOR, 'a[href*="/viewsolution/"]')) > 0)
+        except TimeoutException: pass
+        items = parse_submission_list(driver.page_source)
+        if items: return items[:limit]
+        if attempt < 2: time.sleep(2)
     return []
 
 def fetch_recent_accepted(limit: int = 20) -> list[CodeChefRawSubmission]:
@@ -225,10 +274,17 @@ def fetch_recent_accepted_details(limit: int = 20) -> list[CodeChefSubmissionDet
         _login(driver, username, password)
         submissions = _load_profile_submissions(driver, username, limit); details=[]
         for raw in submissions:
-            driver.get(raw.source_url); WebDriverWait(driver,25).until(EC.presence_of_element_located((By.TAG_NAME,"body")))
-            source, lang=parse_solution_page(driver.page_source)
-            if lang=="Unknown": lang=raw.language
-            if not source: raise CodeChefAuthError(f"Could not extract source code from submission {raw.submission_id}")
+            driver.get(raw.source_url)
+            WebDriverWait(driver,25).until(EC.presence_of_element_located((By.TAG_NAME,"body")))
+            source = ""
+            for _ in range(10):
+                source = _extract_source_from_rendered_driver(driver)
+                if source: break
+                time.sleep(1.5)
+            lang = _detect_language(source) if source else "Unknown"
+            if lang == "Unknown": lang = raw.language
+            if not source:
+                raise CodeChefAuthError(f"Could not extract source code from submission {raw.submission_id}; url={driver.current_url!r}")
             driver.get(f"{BASE_URL}/problems/{quote(raw.problem_id)}")
             WebDriverWait(driver,25).until(EC.presence_of_element_located((By.TAG_NAME,"body")))
             details.append(CodeChefSubmissionDetail(raw, source, lang, parse_problem_metadata(driver.page_source)))
@@ -250,7 +306,11 @@ def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
                 seen.add(item.submission_id); lang=item.language
                 if lang=="Unknown":
                     driver.get(item.source_url); WebDriverWait(driver,25).until(EC.presence_of_element_located((By.TAG_NAME,"body")))
-                    _,lang=parse_solution_page(driver.page_source)
+                    for _ in range(10):
+                        source = _extract_source_from_rendered_driver(driver)
+                        if source:
+                            lang = _detect_language(source); break
+                        time.sleep(1.0)
                 if lang!="Unknown": keys.add(f"codechef::{item.problem_id}::{lang.lower()}")
         if not keys:
             for item in _load_profile_submissions(driver, username, max_pages):

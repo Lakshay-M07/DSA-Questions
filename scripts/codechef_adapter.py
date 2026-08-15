@@ -86,9 +86,30 @@ def _extract_time(node) -> str:
     return ""
 
 
+def _normalize_embedded_html(html: str) -> str:
+    """Normalize CodeChef's escaped HTML response from /recent/user."""
+    return html.replace(r"\/", "/")
+
+
+def _is_accepted_row(row_text: str) -> bool:
+    """Recognize both old 'Accepted' labels and current CodeChef '(100)' rows."""
+    if re.search(r"\bAccepted\b", row_text, re.I):
+        return True
+    # Current profile/recent-submission markup exposes a full-score accepted
+    # submission as '(100)' rather than the literal word 'Accepted'.
+    return bool(re.search(r"\(\s*100(?:\.0+)?\s*\)", row_text))
+
+
 def parse_submission_list(html: str) -> list[CodeChefRawSubmission]:
-    """Parse a CodeChef profile/recent-submissions page for Accepted rows."""
-    soup = BeautifulSoup(html, "html.parser")
+    """Parse CodeChef profile or /recent/user markup for accepted submissions.
+
+    CodeChef currently renders profile rows like:
+      12:30 PM 13/08/26 DSACPR39 (100) C++ Explain
+    The '(100)' is the full-score/accepted indicator and the language is in the
+    same row. The /recent/user endpoint additionally returns escaped HTML, so it
+    is normalized before parsing.
+    """
+    soup = BeautifulSoup(_normalize_embedded_html(html), "html.parser")
     results: list[CodeChefRawSubmission] = []
 
     for link in soup.select('a[href*="/viewsolution/"]'):
@@ -98,33 +119,40 @@ def parse_submission_list(html: str) -> list[CodeChefRawSubmission]:
             continue
         submission_id = match.group(1)
 
-        node = link
-        row_text = ""
-        for _ in range(7):
-            if not node:
-                break
-            candidate = _text(node.get_text(" ", strip=True))
-            if re.search(r"\b(Accepted|Wrong Answer|Runtime Error|Compilation Error)\b", candidate, re.I):
-                row_text = candidate
-                break
-            node = node.parent
+        row = link.find_parent("tr")
+        if row is None:
+            # Fallback for markup without a table row: walk up until we find a
+            # container containing a problem link or enough submission text.
+            row = link.parent
+            for _ in range(6):
+                if row is None:
+                    break
+                candidate_text = _text(row.get_text(" ", strip=True))
+                if row.select_one('a[href*="/problems/"]') or _is_accepted_row(candidate_text):
+                    break
+                row = row.parent
 
-        if not re.search(r"\bAccepted\b", row_text, re.I):
+        row_text = _text(row.get_text(" ", strip=True)) if row else ""
+        if not _is_accepted_row(row_text):
             continue
 
-        problem_link = None
-        if node:
-            problem_link = node.select_one('a[href*="/problems/"]')
+        problem_link = row.select_one('a[href*="/problems/"]') if row else None
         if not problem_link:
-            parent = link.find_parent()
+            # Some versions wrap the problem anchor one level outside the row.
+            parent = link.parent
             problem_link = parent.select_one('a[href*="/problems/"]') if parent else None
 
         problem_href = problem_link.get("href", "") if problem_link else ""
         problem_id = _extract_problem_id(problem_href)
         title = _text(problem_link.get_text(" ", strip=True)) if problem_link else problem_id
         language = _detect_language(row_text)
-        accepted_at = _extract_time(node)
+        accepted_at = _extract_time(row)
         source_url = solution_href if solution_href.startswith("http") else f"{BASE_URL}{solution_href}"
+
+        # A submission without a problem ID cannot be safely deduplicated, so
+        # don't let malformed navigation markup enter the synchronizer.
+        if not problem_id:
+            continue
 
         results.append(CodeChefRawSubmission(
             submission_id=submission_id,
@@ -338,11 +366,10 @@ def _fetch_details_with_driver(driver: webdriver.Chrome, submissions: list[CodeC
 def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
     """Find existing accepted problem/language pairs for the one-time baseline.
 
-    The source itself is never written to disk or the repository. If CodeChef's
-    submission table does not expose the language, the authenticated submission
-    page is visited only long enough to read its language label. This lets the
-    baseline use the same language detection already proven by source extraction
-    while still storing only the problem/language key.
+    No source code is persisted. We use the authenticated profile and the
+    escaped /recent/user endpoint, because the latter is the paginated feed that
+    exposes older submissions. Language is read from the row when available and
+    from the individual submission page only when necessary.
     """
     username, password = _credentials()
     driver = build_driver()
@@ -351,42 +378,26 @@ def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
         keys: set[str] = set()
         seen_submission_ids: set[str] = set()
 
-        # Use the profile page first because it is the known-working source for
-        # fetch_recent_accepted_details(). Stop when a page yields no new IDs.
-        for page in range(max_pages):
-            url = f"{BASE_URL}/users/{quote(username)}"
-            if page:
-                url += f"?page={page}"
-            driver.get(url)
-            WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-            items = parse_submission_list(driver.page_source)
-            new_items = [x for x in items if x.submission_id not in seen_submission_ids]
-            if not new_items:
-                break
+        sources = [
+            lambda page: f"{BASE_URL}/users/{quote(username)}" + (f"?page={page}" if page else ""),
+            lambda page: f"{RECENT_USER_URL}?user_handle={quote(username)}&page={page}",
+        ]
 
-            for item in new_items:
-                seen_submission_ids.add(item.submission_id)
-                language = item.language
-                if language == "Unknown":
-                    driver.get(item.source_url)
-                    WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-                    _, page_language = parse_solution_page(driver.page_source)
-                    language = page_language
-                if item.problem_id and language != "Unknown":
-                    keys.add(f"codechef::{item.problem_id}::{language.lower()}")
-
-        # If the profile parser ever returns nothing, try the historical recent
-        # submissions endpoint as a fallback. This still refuses to create an
-        # empty baseline when no accepted keys can be found.
-        if not keys:
+        for make_url in sources:
+            empty_pages = 0
             for page in range(max_pages):
-                url = f"{RECENT_USER_URL}?user_handle={quote(username)}&page={page}"
-                driver.get(url)
+                driver.get(make_url(page))
                 WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
                 items = parse_submission_list(driver.page_source)
                 new_items = [x for x in items if x.submission_id not in seen_submission_ids]
+
                 if not new_items:
-                    break
+                    empty_pages += 1
+                    if empty_pages >= 1:
+                        break
+                    continue
+                empty_pages = 0
+
                 for item in new_items:
                     seen_submission_ids.add(item.submission_id)
                     language = item.language
@@ -397,6 +408,7 @@ def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
                         language = page_language
                     if item.problem_id and language != "Unknown":
                         keys.add(f"codechef::{item.problem_id}::{language.lower()}")
+
         return keys
     finally:
         driver.quit()

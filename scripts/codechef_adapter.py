@@ -39,6 +39,13 @@ class CodeChefRawSubmission:
     status: str = "Accepted"
 
 
+@dataclass(frozen=True)
+class CodeChefSubmissionDetail:
+    raw: CodeChefRawSubmission
+    source: str
+    language: str
+
+
 def _text(value: str) -> str:
     return " ".join(value.split())
 
@@ -172,9 +179,6 @@ def _login(driver: webdriver.Chrome, username_or_email: str, password: str) -> N
             for name in ("type", "name", "id", "placeholder", "aria-label", "autocomplete")
         )
 
-    # The login form has changed its attributes over time. Do not depend on
-    # one exact placeholder; inspect visible/enabled inputs and choose the
-    # username field by its semantic attributes, then the password field.
     def find_username():
         candidates = visible_inputs()
         ranked = []
@@ -261,5 +265,37 @@ def fetch_recent_accepted(limit: int = 20) -> list[CodeChefRawSubmission]:
         WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
         submissions = parse_submission_list(driver.page_source)
         return submissions[:limit]
+    finally:
+        driver.quit()
+
+
+def fetch_recent_accepted_details(limit: int = 20) -> list[CodeChefSubmissionDetail]:
+    """Fetch recent Accepted submissions and read their submitted source code."""
+    username = os.environ.get("CODECHEF_USERNAME")
+    password = os.environ.get("CODECHEF_PASSWORD")
+    if not username or not password:
+        raise CodeChefAuthError("CODECHEF_USERNAME/CODECHEF_PASSWORD are not set.")
+
+    driver = build_driver()
+    try:
+        _login(driver, username, password)
+        driver.get(f"{BASE_URL}/users/{username}")
+        WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        submissions = parse_submission_list(driver.page_source)[:limit]
+
+        details: list[CodeChefSubmissionDetail] = []
+        for item in submissions:
+            driver.get(item.source_url)
+            WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+            source, page_language = parse_solution_page(driver.page_source)
+            language = page_language if page_language != "Unknown" else item.language
+            if not source:
+                raise CodeChefAuthError(
+                    f"Could not extract source code from CodeChef submission {item.submission_id}."
+                )
+            details.append(
+                CodeChefSubmissionDetail(raw=item, source=source, language=language)
+            )
+        return details
     finally:
         driver.quit()

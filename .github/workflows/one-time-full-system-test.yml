@@ -29,6 +29,50 @@ jobs:
       - name: Run all regression tests
         run: python -m pytest -q
 
+      - name: Diagnose CodeChef problem page
+        env:
+          CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
+          CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
+        run: |
+          python - <<'PY'
+          from scripts import codechef_adapter as cc
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support import expected_conditions as EC
+          from selenium.webdriver.support.ui import WebDriverWait
+
+          username, password = cc._credentials()
+          driver = cc.build_driver()
+          try:
+              cc._login(driver, username, password)
+              driver.get(f"{cc.BASE_URL}/problems/DSACPR45")
+              WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+              body = driver.find_element(By.TAG_NAME, "body").text
+              print(f"URL={driver.current_url}")
+              print(f"TITLE={driver.title}")
+              print("=== BODY TEXT ===")
+              print(body[:6000])
+              print("=== SELECTORS ===")
+              for selector in [
+                  "main", "article", "section", "#problem-statement", ".problem-statement",
+                  "[class*='problem']", "[id*='problem']", "[data-testid*='problem']",
+              ]:
+                  nodes = driver.find_elements(By.CSS_SELECTOR, selector)
+                  print(f"{selector}: {len(nodes)}")
+                  for node in nodes[:3]:
+                      text = node.text.strip()
+                      if text:
+                          print(text[:1500])
+              print("=== HTML MARKERS ===")
+              html = driver.page_source
+              for marker in ["DSACPR45", "Problem Statement", "Task", "Input", "Output", "Constraints", "Explanation"]:
+                  index = html.lower().find(marker.lower())
+                  print(f"{marker}: {index}")
+                  if index >= 0:
+                      print(html[max(0, index - 300):index + 1200])
+          finally:
+              driver.quit()
+          PY
+
       - name: Configure Git identity
         run: |
           git config user.name "Lakshay-M07"

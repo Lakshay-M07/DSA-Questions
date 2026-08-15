@@ -1,0 +1,84 @@
+name: Diagnose CodeChef Submission Page
+
+# Read-only DOM diagnostic. Never writes submissions or repository data.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Inspect CodeChef submission DOM read-only
+        env:
+          CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
+          CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from bs4 import BeautifulSoup
+          from scripts.codechef_adapter import build_driver, _login
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+
+          username = os.environ["CODECHEF_USERNAME"]
+          password = os.environ["CODECHEF_PASSWORD"]
+          driver = build_driver()
+
+          def inspect_page(label, url):
+              driver.get(url)
+              WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+              soup = BeautifulSoup(driver.page_source, "html.parser")
+              anchors = soup.select('a[href]')
+              view_links = [a for a in anchors if "/viewsolution/" in (a.get("href") or "")]
+              problem_links = [a for a in anchors if "/problems/" in (a.get("href") or "")]
+              text = " ".join(soup.stripped_strings)
+
+              print(f"=== {label} ===")
+              print(f"URL: {driver.current_url}")
+              print(f"TITLE: {driver.title}")
+              print(f"VIEW_SOLUTION_LINKS: {len(view_links)}")
+              print(f"PROBLEM_LINKS: {len(problem_links)}")
+              print(f"TABLES: {len(soup.select('table'))} TRS: {len(soup.select('tr'))}")
+              print(f"TEXT_HAS_ACCEPTED: {bool(re.search(r'\\bAccepted\\b', text, re.I))}")
+              print(f"TEXT_HAS_RECENT: {bool(re.search(r'recent (activity|submissions?)', text, re.I))}")
+
+              for i, a in enumerate(view_links[:10], 1):
+                  parent = a.find_parent("tr") or a.parent
+                  attrs = {k: v for k, v in a.attrs.items() if k in {"href", "title", "aria-label", "class", "data-id", "data-submission-id"}}
+                  parent_text = " ".join(parent.stripped_strings)[:500] if parent else ""
+                  print(f"VIEW[{i}] attrs={attrs!r}")
+                  print(f"VIEW[{i}] parent_text={parent_text!r}")
+
+              print("LINK_SAMPLES:")
+              for a in anchors[:40]:
+                  href = a.get("href") or ""
+                  label_text = " ".join(a.stripped_strings)[:100]
+                  if any(token in (href + " " + label_text).lower() for token in ("submission", "solution", "accepted", "view")):
+                      print(f"LINK href={href!r} text={label_text!r}")
+
+          try:
+              _login(driver, username, password)
+              inspect_page("PROFILE", f"https://www.codechef.com/users/{username}")
+              inspect_page("RECENT_ENDPOINT", f"https://www.codechef.com/recent/user?user_handle={username}&page=0")
+          finally:
+              driver.quit()
+          PY

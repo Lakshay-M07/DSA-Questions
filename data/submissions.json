@@ -1,0 +1,18 @@
+{
+  "codechef::DSACPR45::c++": {
+    "platform": "CodeChef",
+    "problem_id": "DSACPR45",
+    "title": "DSACPR45",
+    "language": "C++",
+    "source": "#include <iostream>\nusing namespace std;\nint main() {\n    //Boosts the speed of cin and cout\n    \n    ios_base::sync_with_stdio(false);\n    cin.tie(NULL);\n    \n    int n;\n    cin >> n;\n    \n    long long sum = 0; //Using long long to prevent any potential overflow\n    for(int i = 0; i < n; i++){\n        int element;\n        cin >> element;\n        sum += element;\n    }\n    \n    cout << sum << \"\\n\";\n    \n    return 0;\n}",
+    "accepted_at": "45 min ago",
+    "difficulty": null,
+    "difficulty_source": null,
+    "primary_category": "Other",
+    "tags": [],
+    "submission_id": "1343231156",
+    "difficulty_rating": null,
+    "source_hash": "f7aa0018431eb5dc41e388264a93bd7974afeda37deb781f28935cdc646fac0e",
+    "solution_path": "CodeChef/C/Other/Unknown/DSACPR45-DSACPR45.cpp"
+  }
+}

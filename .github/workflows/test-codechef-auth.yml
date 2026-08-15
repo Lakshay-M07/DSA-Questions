@@ -1,5 +1,7 @@
 name: Test CodeChef Authentication
 
+# Read-only authentication check for CodeChef.
+
 on:
   workflow_dispatch:
 

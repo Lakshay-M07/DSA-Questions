@@ -45,6 +45,22 @@ jobs:
           LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
         run: python scripts/test_leetcode_auth.py
 
+      - name: Test CodeChef authentication and recent submissions (read-only)
+        env:
+          CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
+          CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
+        run: |
+          test -n "$CODECHEF_USERNAME" || { echo "CODECHEF_USERNAME secret is missing."; exit 1; }
+          test -n "$CODECHEF_PASSWORD" || { echo "CODECHEF_PASSWORD secret is missing."; exit 1; }
+          python - <<'PY'
+          from codechef_adapter import fetch_recent_accepted
+
+          items = fetch_recent_accepted(20)
+          print(f"CodeChef recent accepted submissions returned: {len(items)}")
+          for item in items:
+              print(f"CodeChef submission: {item.problem_id} / {item.language} / {item.submission_id}")
+          PY
+
       - name: Sync accepted submissions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,48 @@
+name: One-time Full System Test
+
+on:
+  push:
+    paths:
+      - "tests/test_sync_runner.py"
+
+permissions:
+  contents: write
+
+jobs:
+  full-system:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run all regression tests
+        run: python -m pytest -q
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "Lakshay-M07"
+          git config user.email "222706893+Lakshay-M07@users.noreply.github.com"
+
+      - name: Run full synchronizer end-to-end
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
+          LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
+          CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
+          CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
+          HACKERRANK_SESSION: ${{ secrets.HACKERRANK_SESSION }}
+        run: python scripts/sync_runner.py
+
+      - name: Verify working tree
+        run: git status --short

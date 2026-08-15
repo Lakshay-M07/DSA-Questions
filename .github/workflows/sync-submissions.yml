@@ -53,7 +53,7 @@ jobs:
           test -n "$CODECHEF_USERNAME" || { echo "CODECHEF_USERNAME secret is missing."; exit 1; }
           test -n "$CODECHEF_PASSWORD" || { echo "CODECHEF_PASSWORD secret is missing."; exit 1; }
           python - <<'PY'
-          from codechef_adapter import fetch_recent_accepted
+          from scripts.codechef_adapter import fetch_recent_accepted
 
           items = fetch_recent_accepted(20)
           print(f"CodeChef recent accepted submissions returned: {len(items)}")

@@ -34,6 +34,9 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      - name: Run local regression tests
+        run: python -m pytest -q
+
       - name: Configure Git identity
         run: |
           git config user.name "Lakshay-M07"
@@ -69,7 +72,7 @@ jobs:
           CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
           CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
           HACKERRANK_SESSION: ${{ secrets.HACKERRANK_SESSION }}
-        run: python scripts/sync_runner.py
+        run: python -m scripts.sync_runner
 
       - name: Verify repository state
         run: git status --short

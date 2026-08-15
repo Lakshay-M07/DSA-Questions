@@ -1,8 +1,16 @@
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 from typing import Iterable
+
+# Make both `python scripts/sync_runner.py` and `python -m scripts.sync_runner`
+# work from the repository root. The former puts `scripts/` on sys.path, so
+# imports such as `scripts.codechef_adapter` would otherwise fail.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import scripts.codechef_adapter as codechef
 import scripts.sync_submissions as sync

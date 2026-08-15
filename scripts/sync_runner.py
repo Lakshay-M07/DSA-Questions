@@ -24,13 +24,11 @@ TITLE_BY_PROBLEM: dict[str, str] = {}
 
 
 _original_solution_path = sync.solution_path
-_original_write_solution = sync.write_solution
 _original_commit_submission = sync.commit_submission
 _original_migrate = sync.migrate_legacy_records
 
 
 def _safe_path_component(value: str, fallback: str = "Other") -> str:
-    # Preserve language symbols such as C++ in directory names.
     value = re.sub(r"[^A-Za-z0-9._ +#-]+", "", value).strip()
     value = re.sub(r"\s+", "-", value)
     return value[:100] or fallback
@@ -56,13 +54,12 @@ def solution_path(submission: sync.Submission) -> Path:
 
 
 def _fallback_codechef_metadata(html_text: str, problem_id: str) -> tuple[str, str]:
-    """Use CodeChef's own metadata if the full statement is unavailable."""
     soup = BeautifulSoup(html_text, "html.parser")
     meta = soup.select_one('meta[name="description"]')
     description = (meta.get("content", "") if meta else "").strip()
     title = ""
     if description:
-        match = re.search(r"our\s+(.+?)\s+practice\s+problem", description, re.I)
+        match = re.search(r"with\s+our\s+(.+?)\s+practice\s+problem", description, re.I)
         if match:
             title = re.sub(r"\s+", " ", match.group(1)).strip()
     return title, description
@@ -82,7 +79,6 @@ def _fetch_problem_descriptions(problem_ids: Iterable[str]) -> None:
             codechef.WebDriverWait(driver, 25).until(
                 codechef.EC.presence_of_element_located((codechef.By.TAG_NAME, "body"))
             )
-
             page_html = driver.page_source
             description = extract_problem_description(page_html)
             title = codechef.extract_problem_title(page_html, problem_id)
@@ -110,6 +106,39 @@ def _fetch_problem_descriptions(problem_ids: Iterable[str]) -> None:
         driver.quit()
 
 
+def _refresh_codechef_metadata(record: dict, submission: sync.Submission) -> sync.Submission:
+    """Reuse the same conservative classifier used for newly fetched CodeChef submissions."""
+    title = TITLE_BY_PROBLEM.get(submission.problem_id, submission.title)
+    difficulty = submission.difficulty
+    difficulty_source = submission.difficulty_source
+    tags = tuple(submission.tags)
+    if difficulty is None or not tags or submission.primary_category in (None, "", "Other"):
+        inferred_difficulty, inferred_source, inferred_tags = sync._codechef_classifier(title, submission.source)
+        if difficulty is None:
+            difficulty, difficulty_source = inferred_difficulty, inferred_source
+        if not tags or tags == ("Other",):
+            tags = tuple(inferred_tags)
+
+    category = sync._primary_category(tags)
+    if category == "Other" and submission.primary_category not in (None, "", "Other"):
+        category = submission.primary_category
+
+    return sync.Submission(
+        platform=submission.platform,
+        problem_id=submission.problem_id,
+        title=title,
+        language=submission.language,
+        source=submission.source,
+        accepted_at=submission.accepted_at,
+        difficulty=difficulty,
+        difficulty_source=difficulty_source,
+        primary_category=category,
+        tags=tags,
+        submission_id=submission.submission_id,
+        difficulty_rating=submission.difficulty_rating,
+    )
+
+
 def write_solution(submission: sync.Submission) -> Path:
     if submission.platform.lower() != "codechef":
         path = _original_solution_path(submission)
@@ -118,15 +147,34 @@ def write_solution(submission: sync.Submission) -> Path:
         return path
 
     _fetch_problem_descriptions([submission.problem_id])
+    title = TITLE_BY_PROBLEM.get(submission.problem_id, submission.title)
+    if title != submission.title:
+        submission = sync.Submission(
+            platform=submission.platform,
+            problem_id=submission.problem_id,
+            title=title,
+            language=submission.language,
+            source=submission.source,
+            accepted_at=submission.accepted_at,
+            difficulty=submission.difficulty,
+            difficulty_source=submission.difficulty_source,
+            primary_category=submission.primary_category,
+            tags=submission.tags,
+            submission_id=submission.submission_id,
+            difficulty_rating=submission.difficulty_rating,
+        )
 
     path = solution_path(submission)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(submission.source.rstrip() + "\n", encoding="utf-8")
 
-    description = DESCRIPTION_BY_PROBLEM.get(submission.problem_id, "")
     readme = path.parent / "README.md"
     readme.write_text(
-        build_problem_readme(submission, submission.source, description),
+        build_problem_readme(
+            submission,
+            submission.source,
+            DESCRIPTION_BY_PROBLEM.get(submission.problem_id, ""),
+        ),
         encoding="utf-8",
     )
     return path
@@ -150,61 +198,62 @@ def commit_submission(submission: sync.Submission, path: Path) -> None:
 def migrate_legacy_records(records):
     changed = _original_migrate(records)
     codechef_records = [
-        record
-        for record in records.values()
+        record for record in records.values()
         if record.get("platform") == "CodeChef" and record.get("problem_id")
     ]
 
-    if codechef_records:
-        needs_readme = []
-        for record in codechef_records:
-            problem_id = str(record.get("problem_id") or "")
-            submission = sync.Submission(
-                platform="CodeChef",
-                problem_id=problem_id,
-                title=str(record.get("title") or problem_id or "Question"),
-                language=str(record.get("language") or "Unknown"),
-                source=str(record.get("source") or ""),
-                accepted_at=str(record.get("accepted_at") or ""),
-                difficulty=record.get("difficulty"),
-                difficulty_source=record.get("difficulty_source"),
-                primary_category=record.get("primary_category"),
-                tags=tuple(record.get("tags") or ()),
-                submission_id=record.get("submission_id"),
-                difficulty_rating=record.get("difficulty_rating"),
-            )
-            path = solution_path(submission)
-            readme = path.parent / "README.md"
-            if not readme.exists():
-                needs_readme.append((record, submission, path, readme))
+    refresh_ids = []
+    for record in codechef_records:
+        title = str(record.get("title") or record.get("problem_id") or "")
+        if title == record.get("problem_id") or title.lower().startswith("coding skills with our"):
+            refresh_ids.append(str(record.get("problem_id")))
+    if refresh_ids:
+        _fetch_problem_descriptions(refresh_ids)
 
-        _fetch_problem_descriptions(submission.problem_id for _, submission, _, _ in needs_readme)
-        for record, submission, path, readme in needs_readme:
-            title = TITLE_BY_PROBLEM.get(submission.problem_id, submission.title)
-            if title and title != submission.problem_id and record.get("title") != title:
-                record["title"] = title
-                submission = sync.Submission(
-                    platform=submission.platform,
-                    problem_id=submission.problem_id,
-                    title=title,
-                    language=submission.language,
-                    source=submission.source,
-                    accepted_at=submission.accepted_at,
-                    difficulty=submission.difficulty,
-                    difficulty_source=submission.difficulty_source,
-                    primary_category=submission.primary_category,
-                    tags=submission.tags,
-                    submission_id=submission.submission_id,
-                    difficulty_rating=submission.difficulty_rating,
-                )
+    for record in codechef_records:
+        problem_id = str(record.get("problem_id") or "")
+        submission = sync.Submission(
+            platform="CodeChef",
+            problem_id=problem_id,
+            title=str(record.get("title") or problem_id or "Question"),
+            language=str(record.get("language") or "Unknown"),
+            source=str(record.get("source") or ""),
+            accepted_at=str(record.get("accepted_at") or ""),
+            difficulty=record.get("difficulty"),
+            difficulty_source=record.get("difficulty_source"),
+            primary_category=record.get("primary_category"),
+            tags=tuple(record.get("tags") or ()),
+            submission_id=record.get("submission_id"),
+            difficulty_rating=record.get("difficulty_rating"),
+        )
+        refreshed = _refresh_codechef_metadata(record, submission)
+        expected = solution_path(refreshed)
+        old_relative = record.get("solution_path")
+        old_path = sync.ROOT / old_relative if old_relative else None
 
-            path.parent.mkdir(parents=True, exist_ok=True)
+        if old_path and old_path.exists() and old_path != expected:
+            expected.parent.mkdir(parents=True, exist_ok=True)
+            old_path.replace(expected)
+            changed = True
+
+        new_record = {
+            **sync.asdict(refreshed),
+            "tags": list(refreshed.tags),
+            "source_hash": refreshed.source_hash,
+            "solution_path": str(expected.relative_to(sync.ROOT)),
+        }
+        if record != new_record:
+            records[next(key for key, value in records.items() if value is record)] = new_record
+            changed = True
+
+        readme = expected.parent / "README.md"
+        description = DESCRIPTION_BY_PROBLEM.get(problem_id, "")
+        if not description and readme.exists():
+            description = ""
+        if description or not readme.exists():
+            expected.parent.mkdir(parents=True, exist_ok=True)
             readme.write_text(
-                build_problem_readme(
-                    submission,
-                    submission.source,
-                    DESCRIPTION_BY_PROBLEM[submission.problem_id],
-                ),
+                build_problem_readme(refreshed, refreshed.source, description),
                 encoding="utf-8",
             )
             changed = True
@@ -220,8 +269,4 @@ sync.migrate_legacy_records = migrate_legacy_records
 
 if __name__ == "__main__":
     sync.main()
-    # sync.main() historically returned early when there were no new
-    # submissions, leaving a migration commit unpushed. The wrapper always
-    # performs the final push; when submission commits were already pushed it
-    # is simply a no-op.
     sync._git("push")

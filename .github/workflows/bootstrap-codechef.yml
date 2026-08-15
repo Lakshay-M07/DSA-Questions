@@ -1,0 +1,43 @@
+name: Bootstrap CodeChef Baseline
+
+# Run this once before enabling CodeChef syncing. It records existing
+# accepted problem+language pairs but does not download or commit their code.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Bootstrap existing CodeChef submissions
+        env:
+          CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
+          CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
+        run: python scripts/bootstrap_codechef.py
+
+      - name: Commit baseline only
+        run: |
+          git config user.name "Lakshay-M07"
+          git config user.email "222706893+Lakshay-M07@users.noreply.github.com"
+          git add data/codechef_baseline.json
+          git commit -m "chore: baseline existing CodeChef submissions"
+          git push

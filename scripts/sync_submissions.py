@@ -218,7 +218,10 @@ def fetch_codechef() -> list[Submission]:
         print("CodeChef baseline not found; skipping CodeChef sync to prevent backfill.")
         return []
 
-    from scripts.codechef_adapter import fetch_recent_accepted_details
+    # sync_submissions.py is executed directly from the repository root as
+    # `python scripts/sync_submissions.py`, so import the sibling adapter
+    # directly rather than requiring `scripts` to be an installed package.
+    from codechef_adapter import fetch_recent_accepted_details
 
     submissions: list[Submission] = []
     for detail in fetch_recent_accepted_details(limit=20):

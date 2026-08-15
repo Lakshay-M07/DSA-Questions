@@ -37,4 +37,12 @@ jobs:
         env:
           CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
           CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
-        run: python -c "from scripts.codechef_adapter import fetch_recent_accepted; items=fetch_recent_accepted(20); print(f'Recent Accepted submissions found: {len(items)}'); [print(f'{x.submission_id} | {x.problem_id} | {x.language} | {x.source_url}') for x in items]"
+        run: |
+          python - <<'PY'
+          from scripts.codechef_adapter import fetch_recent_accepted
+
+          items = fetch_recent_accepted(20)
+          print(f"Recent Accepted submissions found: {len(items)}")
+          for x in items:
+              print(f"{x.submission_id} | {x.problem_id} | {x.language} | {x.source_url}")
+          PY

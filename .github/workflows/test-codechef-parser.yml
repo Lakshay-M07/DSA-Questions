@@ -1,0 +1,32 @@
+name: Test CodeChef Adapter
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/codechef_adapter.py"
+      - "tests/**"
+      - "requirements.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  parser-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run CodeChef parser tests
+        run: python -m pytest tests/test_codechef_adapter.py

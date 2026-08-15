@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from dataclasses import dataclass
 from urllib.parse import quote
 
@@ -116,7 +117,6 @@ def _text_preserve(node) -> str:
 def parse_solution_page(html: str) -> tuple[str, str]:
     soup = BeautifulSoup(html, "html.parser")
     source = max((_text_preserve(x) for x in soup.select("pre, code, textarea")), key=len, default="")
-    # _text accepts strings; BeautifulSoup objects must be converted explicitly.
     page_text = soup.get_text(" ", strip=True)
     return source, _detect_language(_text(page_text))
 
@@ -190,20 +190,40 @@ def _login(driver, username, password):
     try: wait.until(lambda d: "/login" not in d.current_url.lower())
     except TimeoutException as exc: raise CodeChefAuthError("CodeChef login did not complete") from exc
 
+def _load_profile_submissions(driver, username: str, limit: int) -> list[CodeChefRawSubmission]:
+    """Load the live profile submission table with a DOM-aware wait and retries."""
+    url = f"{BASE_URL}/users/{quote(username)}"
+    last_count = 0
+    for attempt in range(3):
+        driver.get(url)
+        WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        try:
+            WebDriverWait(driver, 12).until(
+                lambda d: len(d.find_elements(By.CSS_SELECTOR, 'a[href*="/viewsolution/"]')) > 0
+            )
+        except TimeoutException:
+            pass
+        html = driver.page_source
+        items = parse_submission_list(html)
+        last_count = len(items)
+        if items:
+            return items[:limit]
+        if attempt < 2:
+            time.sleep(2)
+    return []
+
 def fetch_recent_accepted(limit: int = 20) -> list[CodeChefRawSubmission]:
     username, password = _credentials(); driver = build_driver()
     try:
-        _login(driver, username, password); driver.get(f"{BASE_URL}/users/{quote(username)}")
-        WebDriverWait(driver,25).until(EC.presence_of_element_located((By.TAG_NAME,"body")))
-        return parse_submission_list(driver.page_source)[:limit]
+        _login(driver, username, password)
+        return _load_profile_submissions(driver, username, limit)
     finally: driver.quit()
 
 def fetch_recent_accepted_details(limit: int = 20) -> list[CodeChefSubmissionDetail]:
     username, password = _credentials(); driver = build_driver()
     try:
-        _login(driver, username, password); driver.get(f"{BASE_URL}/users/{quote(username)}")
-        WebDriverWait(driver,25).until(EC.presence_of_element_located((By.TAG_NAME,"body")))
-        submissions=parse_submission_list(driver.page_source)[:limit]; details=[]
+        _login(driver, username, password)
+        submissions = _load_profile_submissions(driver, username, limit); details=[]
         for raw in submissions:
             driver.get(raw.source_url); WebDriverWait(driver,25).until(EC.presence_of_element_located((By.TAG_NAME,"body")))
             source, lang=parse_solution_page(driver.page_source)
@@ -232,12 +252,8 @@ def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
                     driver.get(item.source_url); WebDriverWait(driver,25).until(EC.presence_of_element_located((By.TAG_NAME,"body")))
                     _,lang=parse_solution_page(driver.page_source)
                 if lang!="Unknown": keys.add(f"codechef::{item.problem_id}::{lang.lower()}")
-        # The paginated feed is authoritative for older rows; profile is a useful
-        # fallback because CodeChef sometimes changes the recent-feed markup.
         if not keys:
-            driver.get(f"{BASE_URL}/users/{quote(username)}")
-            WebDriverWait(driver,25).until(EC.presence_of_element_located((By.TAG_NAME,"body")))
-            for item in parse_submission_list(driver.page_source):
+            for item in _load_profile_submissions(driver, username, max_pages):
                 lang=item.language
                 if lang!="Unknown": keys.add(f"codechef::{item.problem_id}::{lang.lower()}")
         return keys

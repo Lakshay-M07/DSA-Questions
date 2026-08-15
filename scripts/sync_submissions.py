@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import urllib.error
 import urllib.request
@@ -174,11 +175,11 @@ def _primary_category(tags: tuple[str, ...]) -> str:
     priority = [
         "Array", "String", "Hash Table", "Two Pointers", "Binary Search",
         "Linked List", "Stack", "Queue", "Tree", "Graph", "Dynamic Programming",
-        "Greedy", "Backtracking", "Heap",
+        "Greedy", "Backtracking", "Heap", "Sorting",
     ]
-    lowered = {tag.lower(): tag for tag in tags}
+    normalized = {re.sub(r"[^a-z0-9]+", " ", tag.lower()).strip(): tag for tag in tags}
     for preferred in priority:
-        if preferred.lower() in lowered:
+        if preferred.lower() in normalized or preferred.lower().rstrip("s") in normalized:
             return preferred
     return tags[0] if tags else "Other"
 
@@ -194,6 +195,40 @@ def _codechef_language(language: str, source: str) -> str:
             return "C++"
         return {"cpp": "C++", "c++": "C++", "python3": "Python", "javascript": "JavaScript"}.get(value.lower(), value)
     return value or "Unknown"
+
+
+def _codechef_classifier(title: str, source: str) -> tuple[str | None, str | None, tuple[str, ...]]:
+    """Conservative fallback only when CodeChef page metadata is unavailable."""
+    text = f"{title}\n{source}".lower()
+    tags: list[str] = []
+    rules = [
+        ("Dynamic Programming", r"\bdp\b|memo|tabulation|knapsack"),
+        ("Graph", r"adjacency|adj\[|dfs|bfs|dijkstra|topological"),
+        ("Binary Search", r"binary_search|lower_bound|upper_bound"),
+        ("Sorting", r"sort\s*\(|stable_sort|sorting"),
+        ("Hash Table", r"unordered_map|unordered_set|hashmap|hash map"),
+        ("Stack", r"stack\s*<|push\(|pop\("),
+        ("Queue", r"queue\s*<|priority_queue|enqueue|dequeue"),
+        ("String", r"string|substring|palindrome|character"),
+        ("Array", r"array|vector\s*<|\[[^\]]+\]|elements|sum of"),
+    ]
+    for tag, pattern in rules:
+        if re.search(pattern, text, re.I):
+            tags.append(tag)
+    if not tags:
+        tags = ["Other"]
+
+    # Difficulty is deliberately labeled as classifier-derived, never as an
+    # official CodeChef rating. Simple linear/counting solutions are Easy;
+    # sorting/hash-table/nested-loop patterns are Medium; graph/DP/advanced
+    # algorithm patterns are Hard.
+    if any(tag in tags for tag in ("Graph", "Dynamic Programming")):
+        difficulty = "Hard"
+    elif any(tag in tags for tag in ("Binary Search", "Sorting", "Hash Table", "Stack", "Queue")) or len(re.findall(r"\bfor\b|\bwhile\b", source)) >= 2:
+        difficulty = "Medium"
+    else:
+        difficulty = "Easy"
+    return difficulty, "codechef_source_classifier", tuple(tags)
 
 
 def fetch_leetcode() -> list[Submission]:
@@ -225,7 +260,7 @@ def fetch_leetcode() -> list[Submission]:
 
 
 def fetch_codechef() -> list[Submission]:
-    """Fetch new CodeChef data only after the existing-account baseline exists."""
+    """Fetch CodeChef accepted submissions after the existing-account baseline."""
     if not CODECHEF_BASELINE_FILE.exists():
         print("CodeChef baseline not found; skipping CodeChef sync to prevent backfill.")
         return []
@@ -236,9 +271,17 @@ def fetch_codechef() -> list[Submission]:
     for detail in fetch_recent_accepted_details(limit=20):
         raw = detail.raw
         metadata = detail.metadata
-        tags = tuple(metadata.tags)
         language = _codechef_language(detail.language or raw.language, detail.source)
         title = detail.title or raw.title or raw.problem_id
+        tags = tuple(metadata.tags)
+        difficulty = metadata.difficulty
+        difficulty_source = metadata.difficulty_source
+        if difficulty is None or not tags:
+            inferred_difficulty, inferred_source, inferred_tags = _codechef_classifier(title, detail.source)
+            if difficulty is None:
+                difficulty, difficulty_source = inferred_difficulty, inferred_source
+            if not tags:
+                tags = inferred_tags
         submissions.append(Submission(
             platform="CodeChef",
             problem_id=raw.problem_id,
@@ -246,8 +289,8 @@ def fetch_codechef() -> list[Submission]:
             language=language,
             source=detail.source,
             accepted_at=raw.accepted_at,
-            difficulty=metadata.difficulty,
-            difficulty_source=metadata.difficulty_source,
+            difficulty=difficulty,
+            difficulty_source=difficulty_source,
             primary_category=_primary_category(tags),
             tags=tags,
             submission_id=raw.submission_id,
@@ -280,9 +323,6 @@ def solution_path(submission: Submission) -> Path:
     language = _safe_component(submission.language)
     category = _safe_component(submission.primary_category or "Other")
     difficulty = _safe_component(submission.difficulty or "Unknown")
-    # Finalized structure uses the question title as the filename, not
-    # "problem-id-title". If CodeChef only exposes the ID as its title,
-    # the ID naturally becomes the filename.
     filename = f"{_safe_component(submission.title, submission.problem_id)}.{_extension(submission.language)}"
     return ROOT / platform / language / category / difficulty / filename
 
@@ -313,6 +353,57 @@ def commit_submission(submission: Submission, path: Path) -> None:
     _git("commit", "-m", message[:180])
 
 
+def migrate_legacy_records(records: dict[str, dict[str, Any]]) -> bool:
+    """Repair the first CodeChef import created before the finalized path rules."""
+    changed = False
+    for key, record in records.items():
+        if not key.startswith("codechef::") or record.get("platform") != "CodeChef":
+            continue
+        source = record.get("source") or ""
+        language = _codechef_language(str(record.get("language") or "Unknown"), source)
+        title = str(record.get("title") or record.get("problem_id") or "Question")
+        tags = tuple(record.get("tags") or ())
+        difficulty = record.get("difficulty")
+        difficulty_source = record.get("difficulty_source")
+        if difficulty is None or not tags:
+            inferred_difficulty, inferred_source, inferred_tags = _codechef_classifier(title, source)
+            if difficulty is None:
+                difficulty, difficulty_source = inferred_difficulty, inferred_source
+            if not tags:
+                tags = inferred_tags
+        migrated = Submission(
+            platform="CodeChef",
+            problem_id=str(record.get("problem_id") or ""),
+            title=title,
+            language=language,
+            source=source,
+            accepted_at=str(record.get("accepted_at") or ""),
+            difficulty=difficulty,
+            difficulty_source=difficulty_source,
+            primary_category=_primary_category(tags),
+            tags=tags,
+            submission_id=str(record.get("submission_id") or "") or None,
+            difficulty_rating=record.get("difficulty_rating"),
+        )
+        expected = solution_path(migrated)
+        old_relative = record.get("solution_path")
+        old_path = ROOT / old_relative if old_relative else None
+        if old_path and old_path.exists() and old_path != expected:
+            expected.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(old_path), str(expected))
+            changed = True
+        new_record = {
+            **asdict(migrated),
+            "tags": list(migrated.tags),
+            "source_hash": migrated.source_hash,
+            "solution_path": str(expected.relative_to(ROOT)),
+        }
+        if record != new_record:
+            records[key] = new_record
+            changed = True
+    return changed
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--leetcode-smoke", action="store_true")
@@ -335,6 +426,12 @@ def main() -> None:
 
     records = load_records()
     baseline_keys = load_codechef_baseline()
+    migrated = migrate_legacy_records(records)
+    if migrated:
+        save_records(records)
+        _git("add", str(SUBMISSIONS_FILE.relative_to(ROOT)), "CodeChef")
+        _git("commit", "-m", "fix: migrate CodeChef solutions to finalized structure")
+        print("Migrated legacy CodeChef solution paths and metadata.")
 
     print("=== FETCH RESULTS ===")
     leetcode_submissions = fetch_leetcode()
@@ -345,7 +442,7 @@ def main() -> None:
     codechef_submissions = fetch_codechef()
     print(f"CodeChef accepted submissions returned: {len(codechef_submissions)}")
     for submission in codechef_submissions:
-        print(f"CodeChef: {submission.problem_id} / {submission.language} / {submission.title}")
+        print(f"CodeChef: {submission.problem_id} / {submission.language} / {submission.title} / {submission.difficulty} / {submission.primary_category}")
 
     hackerrank_submissions = fetch_hackerrank()
     print(f"HackerRank accepted submissions returned: {len(hackerrank_submissions)}")

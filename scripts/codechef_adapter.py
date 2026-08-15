@@ -1,8 +1,8 @@
-"""Authenticated CodeChef submission reader for GitHub Actions.
+"""CodeChef web adapter used by the GitHub Actions sync job.
 
-This module intentionally performs read-only browser automation. It logs into
-CodeChef, reads the user's recent submission list, and opens only Accepted
-submission pages to retrieve source code and metadata.
+This module intentionally keeps all browser automation inside GitHub Actions.
+It never submits code; it only reads the user's recent submissions and their
+solution pages after authentication.
 """
 
 from __future__ import annotations
@@ -11,17 +11,22 @@ import os
 import re
 import time
 from dataclasses import dataclass
-from urllib.parse import urljoin
+from typing import Iterable
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.common.exceptions import ElementNotInteractableException, TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 BASE_URL = "https://www.codechef.com"
 LOGIN_URL = f"{BASE_URL}/login"
+
+
+class CodeChefAuthError(RuntimeError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -29,114 +34,98 @@ class CodeChefRawSubmission:
     submission_id: str
     problem_id: str
     title: str
-    status: str
     language: str
     source_url: str
-    submitted_at: str = ""
+    status: str = "Accepted"
 
 
-class CodeChefAuthError(RuntimeError):
-    pass
-
-
-def _text(node) -> str:
-    return " ".join(node.get_text(" ", strip=True).split()) if node else ""
-
-
-def _contains_language(text: str, language: str) -> bool:
-    """Match programming-language names without breaking names like C++."""
-    if language == "C++":
-        return bool(re.search(r"(?<![A-Za-z0-9])C\+\+(?![A-Za-z0-9])", text, re.I))
-    if language == "C":
-        return bool(re.search(r"(?<![A-Za-z0-9])C(?![A-Za-z0-9+])", text, re.I))
-    return bool(re.search(rf"(?<![A-Za-z0-9]){re.escape(language)}(?![A-Za-z0-9])", text, re.I))
+def _text(value: str) -> str:
+    return " ".join(value.split())
 
 
 def _detect_language(text: str) -> str:
-    # C++ must be checked before C because C is a substring of C++.
-    for language in ("C++", "Python", "JavaScript", "Java", "C"):
-        if _contains_language(text, language):
-            return language
-    return ""
+    t = text.lower()
+    if re.search(r"c\+\+|cpp|gnu\+\+", t):
+        return "C++"
+    if re.search(r"javascript|node\.js|nodejs", t):
+        return "JavaScript"
+    if re.search(r"python|python3", t):
+        return "Python"
+    if re.search(r"java", t):
+        return "Java"
+    if re.search(r"\bc\b|gcc", t):
+        return "C"
+    return "Unknown"
+
+
+def _extract_problem_id(href: str) -> str:
+    match = re.search(r"/problems/([^/?#]+)", href or "")
+    return match.group(1) if match else ""
 
 
 def parse_submission_list(html: str) -> list[CodeChefRawSubmission]:
-    """Parse submission rows/links without requiring a live browser.
-
-    CodeChef has changed its profile markup over time, so this parser uses
-    stable semantic signals (submission/viewsolution links and row text) rather
-    than relying on a single generated CSS class.
-    """
+    """Parse a CodeChef profile/submissions page for Accepted rows."""
     soup = BeautifulSoup(html, "html.parser")
     results: list[CodeChefRawSubmission] = []
-    seen: set[str] = set()
 
     for link in soup.select('a[href*="/viewsolution/"]'):
-        href = link.get("href", "")
-        match = re.search(r"/viewsolution/(\d+)", href)
+        solution_href = link.get("href", "")
+        match = re.search(r"/viewsolution/(\d+)", solution_href)
         if not match:
             continue
         submission_id = match.group(1)
-        if submission_id in seen:
-            continue
-        seen.add(submission_id)
 
-        row = link
-        for _ in range(5):
-            if row.parent is None:
+        node = link
+        row_text = ""
+        for _ in range(6):
+            if not node:
                 break
-            row = row.parent
-            row_text = _text(row)
-            if "Accepted" in row_text or "Wrong Answer" in row_text or "Runtime Error" in row_text:
+            candidate = _text(node.get_text(" ", strip=True))
+            if re.search(r"\b(Accepted|Wrong Answer|Runtime Error|Compilation Error)\b", candidate, re.I):
+                row_text = candidate
                 break
+            node = node.parent
 
-        row_text = _text(row)
-        status = "Accepted" if re.search(r"\bAccepted\b", row_text, re.I) else ""
-        if not status:
-            # Do not classify unknown rows as accepted.
+        if not re.search(r"\bAccepted\b", row_text, re.I):
             continue
 
-        problem_id = ""
-        for candidate in row.select('a[href*="/problems/"]'):
-            m = re.search(r"/problems/([^/?#]+)", candidate.get("href", ""))
-            if m:
-                problem_id = m.group(1).upper()
-                break
-        if not problem_id:
-            # Some profile layouts expose a problem code as plain text.
-            code_match = re.search(r"\b[A-Z][A-Z0-9_]{2,15}\b", row_text)
-            problem_id = code_match.group(0) if code_match else submission_id
+        problem_link = None
+        if node:
+            problem_link = node.select_one('a[href*="/problems/"]')
+        if not problem_link:
+            problem_link = link.find_parent().select_one('a[href*="/problems/"]') if link.find_parent() else None
 
-        title = _text(link)
-        if title.lower() in {"view solution", "solution", "viewsolution"} or not title:
-            problem_link = row.select_one('a[href*="/problems/"]')
-            title = _text(problem_link) or problem_id
-
+        problem_href = problem_link.get("href", "") if problem_link else ""
+        problem_id = _extract_problem_id(problem_href)
+        title = _text(problem_link.get_text(" ", strip=True)) if problem_link else problem_id
         language = _detect_language(row_text)
 
+        source_url = solution_href if solution_href.startswith("http") else f"{BASE_URL}{solution_href}"
         results.append(
             CodeChefRawSubmission(
                 submission_id=submission_id,
                 problem_id=problem_id,
                 title=title,
-                status=status,
                 language=language,
-                source_url=urljoin(BASE_URL, href),
+                source_url=source_url,
             )
         )
 
-    return results
+    # Keep one record per submission ID while preserving page order.
+    seen: set[str] = set()
+    unique: list[CodeChefRawSubmission] = []
+    for item in results:
+        if item.submission_id not in seen:
+            seen.add(item.submission_id)
+            unique.append(item)
+    return unique
 
 
 def parse_solution_page(html: str) -> tuple[str, str]:
     """Return (source_code, language) from a CodeChef solution page."""
     soup = BeautifulSoup(html, "html.parser")
-
-    # Prefer code/pre blocks; CodeChef has used both pre and textarea/code
-    # presentations in different generations of the site.
     candidates = soup.select("pre, code, textarea")
     source = max((_text_preserve(c) for c in candidates), key=len, default="")
-
     language = _detect_language(_text(soup))
     return source, language
 
@@ -157,39 +146,81 @@ def build_driver() -> webdriver.Chrome:
     return webdriver.Chrome(options=options)
 
 
+def _first_visible_interactable(elements):
+    for element in elements:
+        try:
+            if element.is_displayed() and element.is_enabled():
+                return element
+        except Exception:
+            continue
+    return None
+
+
 def _login(driver: webdriver.Chrome, username_or_email: str, password: str) -> None:
     driver.get(LOGIN_URL)
-    wait = WebDriverWait(driver, 25)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input")))
+    wait = WebDriverWait(driver, 30)
 
-    inputs = driver.find_elements(By.CSS_SELECTOR, "input")
-    text_inputs = [x for x in inputs if x.get_attribute("type") in (None, "", "text", "email")]
-    password_inputs = [x for x in inputs if x.get_attribute("type") == "password"]
-    if not text_inputs or not password_inputs:
-        raise CodeChefAuthError("Could not locate CodeChef login fields.")
+    # CodeChef's current login page contains hidden inputs as well as the
+    # visible "Username or Email" and "Password" controls. Selecting the
+    # first input[type=text] was therefore unreliable in headless Chrome.
+    username = wait.until(
+        EC.visibility_of_element_located(
+            (By.CSS_SELECTOR, 'input[placeholder*="Username or Email" i], input[placeholder*="Username" i], input[type="email"]')
+        )
+    )
+    password_input = wait.until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[type="password"]'))
+    )
 
-    text_inputs[0].clear()
-    text_inputs[0].send_keys(username_or_email)
-    password_inputs[0].clear()
-    password_inputs[0].send_keys(password)
+    try:
+        username.click()
+        username.clear()
+        username.send_keys(username_or_email)
+        password_input.click()
+        password_input.clear()
+        password_input.send_keys(password)
+    except ElementNotInteractableException as exc:
+        # Fall back to the first visible/enabled matching controls if CodeChef
+        # changes the exact placeholder structure.
+        username = _first_visible_interactable(
+            driver.find_elements(By.CSS_SELECTOR, 'input[placeholder*="Username" i], input[type="email"], input[type="text"]')
+        )
+        password_input = _first_visible_interactable(
+            driver.find_elements(By.CSS_SELECTOR, 'input[type="password"]')
+        )
+        if not username or not password_input:
+            raise CodeChefAuthError("Could not locate interactable CodeChef login fields.") from exc
+        username.click()
+        username.send_keys(username_or_email)
+        password_input.click()
+        password_input.send_keys(password)
 
-    # Submit the form rather than depending on a generated button class.
-    password_inputs[0].submit()
-    time.sleep(3)
+    # Prefer the actual login button when present; submitting the password
+    # field remains a fallback for older page variants.
+    buttons = driver.find_elements(By.CSS_SELECTOR, 'button, input[type="submit"]')
+    login_button = None
+    for button in buttons:
+        try:
+            label = _text(button.text or button.get_attribute("value") or button.get_attribute("aria-label") or "")
+            if button.is_displayed() and button.is_enabled() and re.search(r"^log\s*in$|^login$", label, re.I):
+                login_button = button
+                break
+        except Exception:
+            continue
 
-    if "/login" in driver.current_url.lower():
-        # Give client-side validation/navigation a little more time.
-        time.sleep(3)
-    if "/login" in driver.current_url.lower():
-        raise CodeChefAuthError("CodeChef login was not accepted. Check the credentials.")
+    if login_button:
+        login_button.click()
+    else:
+        password_input.submit()
+
+    try:
+        wait.until(lambda d: "/login" not in d.current_url.lower())
+    except TimeoutException as exc:
+        raise CodeChefAuthError("CodeChef login was not accepted. Check the credentials or whether an additional verification step is required.") from exc
 
 
 def fetch_recent_accepted(limit: int = 20) -> list[CodeChefRawSubmission]:
-    """Log in and fetch recent Accepted submissions, including source URLs.
-
-    This is deliberately read-only: no submission, profile, or repository
-    mutation is performed.
-    """
+    """Log in and fetch recent Accepted submissions, including source URLs."""
     username = os.environ.get("CODECHEF_USERNAME")
     password = os.environ.get("CODECHEF_PASSWORD")
     if not username or not password:

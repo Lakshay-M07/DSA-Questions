@@ -35,6 +35,7 @@ jobs:
           CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
         run: |
           python - <<'PY'
+          import time
           from scripts import codechef_adapter as cc
           from selenium.webdriver.common.by import By
           from selenium.webdriver.support import expected_conditions as EC
@@ -46,29 +47,41 @@ jobs:
               cc._login(driver, username, password)
               driver.get(f"{cc.BASE_URL}/problems/DSACPR45")
               WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-              body = driver.find_element(By.TAG_NAME, "body").text
+              time.sleep(8)
               print(f"URL={driver.current_url}")
               print(f"TITLE={driver.title}")
+              body_text = driver.execute_script("return document.body ? document.body.innerText : ''")
               print("=== BODY TEXT ===")
-              print(body[:6000])
-              print("=== SELECTORS ===")
-              for selector in [
-                  "main", "article", "section", "#problem-statement", ".problem-statement",
-                  "[class*='problem']", "[id*='problem']", "[data-testid*='problem']",
-              ]:
-                  nodes = driver.find_elements(By.CSS_SELECTOR, selector)
-                  print(f"{selector}: {len(nodes)}")
-                  for node in nodes[:3]:
-                      text = node.text.strip()
-                      if text:
-                          print(text[:1500])
-              print("=== HTML MARKERS ===")
-              html = driver.page_source
-              for marker in ["DSACPR45", "Problem Statement", "Task", "Input", "Output", "Constraints", "Explanation"]:
+              print((body_text or "")[:8000])
+              print("=== PROBLEM ELEMENTS ===")
+              data = driver.execute_script("""
+                  const selectors = [
+                    'main','article','section','#problem-statement','.problem-statement',
+                    '[class*="problem"]','[id*="problem"]','[data-testid*="problem"]'
+                  ];
+                  const out = {};
+                  for (const selector of selectors) {
+                    out[selector] = Array.from(document.querySelectorAll(selector)).slice(0, 5).map(el => ({
+                      tag: el.tagName,
+                      id: el.id,
+                      className: typeof el.className === 'string' ? el.className : '',
+                      text: (el.innerText || '').slice(0, 2000),
+                      html: el.outerHTML.slice(0, 5000)
+                    }));
+                  }
+                  return out;
+              """)
+              for selector, nodes in data.items():
+                  print(f"--- {selector}: {len(nodes)} ---")
+                  for node in nodes:
+                      print(node)
+              print("=== BODY HTML MARKERS ===")
+              html = driver.execute_script("return document.documentElement.outerHTML")
+              for marker in ["DSACPR45", "Problem Statement", "Task", "Input", "Output", "Constraints", "Explanation", "Sum of Array"]:
                   index = html.lower().find(marker.lower())
                   print(f"{marker}: {index}")
                   if index >= 0:
-                      print(html[max(0, index - 300):index + 1200])
+                      print(html[max(0, index - 500):index + 2500])
           finally:
               driver.quit()
           PY

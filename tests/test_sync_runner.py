@@ -29,4 +29,4 @@ def test_sync_runner_import_and_codechef_path():
     )
 
 
-# Trigger the final end-to-end verification after the migration-push fix.
+# Trigger the final metadata/path verification.

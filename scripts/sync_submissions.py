@@ -70,7 +70,6 @@ def _leetcode_request(query: str, variables: dict[str, Any] | None = None) -> di
     csrf = os.environ.get("LEETCODE_CSRF_TOKEN")
     if not session or not csrf:
         raise RuntimeError("LeetCode authentication secrets are not available.")
-
     payload = json.dumps({"query": query, "variables": variables or {}}).encode("utf-8")
     request = urllib.request.Request(
         LEETCODE_ENDPOINT,
@@ -184,6 +183,19 @@ def _primary_category(tags: tuple[str, ...]) -> str:
     return tags[0] if tags else "Other"
 
 
+def _codechef_language(language: str, source: str) -> str:
+    value = language.strip()
+    if value and value.lower() not in {"unknown", ""}:
+        if value.lower() in {"c", "gcc"} and re.search(
+            r"using\s+namespace\s+std|std::|\bcout\b|\bcin\b|#include\s*<[^>]*(iostream|bits/|vector|string)",
+            source,
+            re.I,
+        ):
+            return "C++"
+        return {"cpp": "C++", "c++": "C++", "python3": "Python", "javascript": "JavaScript"}.get(value.lower(), value)
+    return value or "Unknown"
+
+
 def fetch_leetcode() -> list[Submission]:
     submissions: list[Submission] = []
     for item in _leetcode_recent_accepted(limit=20):
@@ -225,11 +237,13 @@ def fetch_codechef() -> list[Submission]:
         raw = detail.raw
         metadata = detail.metadata
         tags = tuple(metadata.tags)
+        language = _codechef_language(detail.language or raw.language, detail.source)
+        title = detail.title or raw.title or raw.problem_id
         submissions.append(Submission(
             platform="CodeChef",
             problem_id=raw.problem_id,
-            title=raw.title or raw.problem_id,
-            language=detail.language,
+            title=title,
+            language=language,
             source=detail.source,
             accepted_at=raw.accepted_at,
             difficulty=metadata.difficulty,
@@ -266,7 +280,10 @@ def solution_path(submission: Submission) -> Path:
     language = _safe_component(submission.language)
     category = _safe_component(submission.primary_category or "Other")
     difficulty = _safe_component(submission.difficulty or "Unknown")
-    filename = f"{_safe_component(submission.problem_id)}-{_safe_component(submission.title, submission.problem_id)}.{_extension(submission.language)}"
+    # Finalized structure uses the question title as the filename, not
+    # "problem-id-title". If CodeChef only exposes the ID as its title,
+    # the ID naturally becomes the filename.
+    filename = f"{_safe_component(submission.title, submission.problem_id)}.{_extension(submission.language)}"
     return ROOT / platform / language / category / difficulty / filename
 
 

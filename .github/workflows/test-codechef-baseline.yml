@@ -1,0 +1,44 @@
+name: Test CodeChef Baseline Fetch
+
+# Read-only check of the pagination used by the one-time baseline.
+# This does not create files or modify the repository.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Fetch existing CodeChef accepted keys read-only
+        env:
+          CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
+          CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
+        run: |
+          python - <<'PY'
+          from scripts.codechef_adapter import fetch_all_accepted_keys
+
+          keys = fetch_all_accepted_keys()
+          print(f"Existing accepted CodeChef problem-language pairs found: {len(keys)}")
+          if not keys:
+              raise SystemExit("Zero pairs found; baseline must not be created.")
+          for key in sorted(keys):
+              print(key)
+          print("Read-only baseline fetch passed; repository was not modified.")
+          PY

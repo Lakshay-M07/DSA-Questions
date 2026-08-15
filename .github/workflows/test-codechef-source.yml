@@ -1,0 +1,38 @@
+name: Test CodeChef Source Extraction
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  codechef-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Fetch accepted source code read-only
+        env:
+          CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
+          CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
+        run: |
+          python - <<'PY'
+          from scripts.codechef_adapter import fetch_recent_accepted_details
+
+          items = fetch_recent_accepted_details(20)
+          print(f"Accepted submissions with source extracted: {len(items)}")
+          for x in items:
+              print(f"{x.raw.submission_id} | {x.raw.problem_id} | {x.language} | source_chars={len(x.source)}")
+          PY

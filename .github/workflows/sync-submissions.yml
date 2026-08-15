@@ -5,6 +5,9 @@ on:
     # Run every 20 minutes, offset from the top of the hour to reduce queue contention.
     - cron: '7,27,47 * * * *'
   workflow_dispatch:
+  push:
+    paths:
+      - "tests/test_leetcode_structure.py"
 
 permissions:
   contents: write

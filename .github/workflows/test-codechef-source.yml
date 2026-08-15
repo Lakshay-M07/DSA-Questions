@@ -2,6 +2,10 @@ name: Test CodeChef Source Extraction
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "scripts/codechef_adapter.py"
+      - ".github/workflows/test-codechef-source.yml"
 
 permissions:
   contents: read
@@ -33,6 +37,15 @@ jobs:
 
           items = fetch_recent_accepted_details(20)
           print(f"Accepted submissions with source extracted: {len(items)}")
+          assert items, "CodeChef returned no accepted submissions with source code."
+
+          found_new = False
           for x in items:
               print(f"{x.raw.submission_id} | {x.raw.problem_id} | {x.language} | source_chars={len(x.source)}")
+              if x.raw.problem_id == "DSACPR45":
+                  found_new = True
+                  assert x.source.strip(), "DSACPR45 source is empty"
+
+          assert found_new, "Expected test submission DSACPR45 was not returned by CodeChef."
+          print("Live CodeChef source extraction test passed for DSACPR45.")
           PY

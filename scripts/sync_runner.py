@@ -220,3 +220,8 @@ sync.migrate_legacy_records = migrate_legacy_records
 
 if __name__ == "__main__":
     sync.main()
+    # sync.main() historically returned early when there were no new
+    # submissions, leaving a migration commit unpushed. The wrapper always
+    # performs the final push; when submission commits were already pushed it
+    # is simply a no-op.
+    sync._git("push")

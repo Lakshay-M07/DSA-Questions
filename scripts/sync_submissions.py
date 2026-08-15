@@ -218,9 +218,6 @@ def fetch_codechef() -> list[Submission]:
         print("CodeChef baseline not found; skipping CodeChef sync to prevent backfill.")
         return []
 
-    # sync_submissions.py is executed directly from the repository root as
-    # `python scripts/sync_submissions.py`, so import the sibling adapter
-    # directly rather than requiring `scripts` to be an installed package.
     from codechef_adapter import fetch_recent_accepted_details
 
     submissions: list[Submission] = []
@@ -321,16 +318,30 @@ def main() -> None:
 
     records = load_records()
     baseline_keys = load_codechef_baseline()
-    fetched = fetch_leetcode() + fetch_codechef() + fetch_hackerrank()
+
+    print("=== FETCH RESULTS ===")
+    leetcode_submissions = fetch_leetcode()
+    print(f"LeetCode accepted submissions returned: {len(leetcode_submissions)}")
+    for submission in leetcode_submissions:
+        print(f"LeetCode: {submission.problem_id} / {submission.language} / {submission.title}")
+
+    codechef_submissions = fetch_codechef()
+    print(f"CodeChef accepted submissions returned: {len(codechef_submissions)}")
+    for submission in codechef_submissions:
+        print(f"CodeChef: {submission.problem_id} / {submission.language} / {submission.title}")
+
+    hackerrank_submissions = fetch_hackerrank()
+    print(f"HackerRank accepted submissions returned: {len(hackerrank_submissions)}")
+
+    fetched = leetcode_submissions + codechef_submissions + hackerrank_submissions
     new_submissions = normalize_new_submissions(fetched, records, baseline_keys)
 
+    print("=== NEW SUBMISSIONS ===")
     if not new_submissions:
+        print("None")
         print("No new accepted submissions discovered.")
         return
 
-    # Each new accepted problem/language gets its own Git commit. A single
-    # workflow run can therefore produce 10+ qualifying commits if 10 new
-    # accepted submissions arrived since the previous poll.
     for submission in new_submissions:
         path = write_solution(submission)
         record_submission(records, submission)

@@ -1,8 +1,4 @@
-"""CodeChef web adapter used by the GitHub Actions sync job.
-
-All browser automation runs inside GitHub Actions. The adapter only reads
-accepted submissions, submitted source, and public problem metadata.
-"""
+"""CodeChef web adapter used by the GitHub Actions sync job."""
 
 from __future__ import annotations
 
@@ -128,8 +124,8 @@ def parse_submission_list(html: str) -> list[CodeChefRawSubmission]:
         title = _text(problem_link.get_text(" ", strip=True)) if problem_link else problem_id
         language = _detect_language(row_text)
         accepted_at = _extract_time(node)
-
         source_url = solution_href if solution_href.startswith("http") else f"{BASE_URL}{solution_href}"
+
         results.append(CodeChefRawSubmission(
             submission_id=submission_id,
             problem_id=problem_id,
@@ -340,13 +336,13 @@ def _fetch_details_with_driver(driver: webdriver.Chrome, submissions: list[CodeC
 
 
 def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
-    """Read accepted submissions for the account without downloading source code.
+    """Find existing accepted problem/language pairs for the one-time baseline.
 
-    CodeChef's authenticated user profile is the same source used by the
-    successful recent-submissions/source tests. We paginate that profile and
-    use the recent/user endpoint only as a fallback if the profile returns no
-    submission rows. This avoids creating a false empty baseline when the
-    recent/user page has changed its HTML/API rendering.
+    The source itself is never written to disk or the repository. If CodeChef's
+    submission table does not expose the language, the authenticated submission
+    page is visited only long enough to read its language label. This lets the
+    baseline use the same language detection already proven by source extraction
+    while still storing only the problem/language key.
     """
     username, password = _credentials()
     driver = build_driver()
@@ -355,8 +351,8 @@ def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
         keys: set[str] = set()
         seen_submission_ids: set[str] = set()
 
-        # Primary source: authenticated profile, which is already proven to
-        # work for the CodeChef source-extraction workflow.
+        # Use the profile page first because it is the known-working source for
+        # fetch_recent_accepted_details(). Stop when a page yields no new IDs.
         for page in range(max_pages):
             url = f"{BASE_URL}/users/{quote(username)}"
             if page:
@@ -367,13 +363,21 @@ def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
             new_items = [x for x in items if x.submission_id not in seen_submission_ids]
             if not new_items:
                 break
+
             for item in new_items:
                 seen_submission_ids.add(item.submission_id)
-                if item.problem_id and item.language:
-                    keys.add(f"codechef::{item.problem_id}::{item.language.lower()}")
+                language = item.language
+                if language == "Unknown":
+                    driver.get(item.source_url)
+                    WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+                    _, page_language = parse_solution_page(driver.page_source)
+                    language = page_language
+                if item.problem_id and language != "Unknown":
+                    keys.add(f"codechef::{item.problem_id}::{language.lower()}")
 
-        # Safety fallback: if the profile yielded nothing, try CodeChef's
-        # recent/user view rather than accepting an empty baseline.
+        # If the profile parser ever returns nothing, try the historical recent
+        # submissions endpoint as a fallback. This still refuses to create an
+        # empty baseline when no accepted keys can be found.
         if not keys:
             for page in range(max_pages):
                 url = f"{RECENT_USER_URL}?user_handle={quote(username)}&page={page}"
@@ -385,8 +389,14 @@ def fetch_all_accepted_keys(max_pages: int = 100) -> set[str]:
                     break
                 for item in new_items:
                     seen_submission_ids.add(item.submission_id)
-                    if item.problem_id and item.language:
-                        keys.add(f"codechef::{item.problem_id}::{item.language.lower()}")
+                    language = item.language
+                    if language == "Unknown":
+                        driver.get(item.source_url)
+                        WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+                        _, page_language = parse_solution_page(driver.page_source)
+                        language = page_language
+                    if item.problem_id and language != "Unknown":
+                        keys.add(f"codechef::{item.problem_id}::{language.lower()}")
         return keys
     finally:
         driver.quit()

@@ -19,8 +19,7 @@ def test_leetcode_slug_and_path():
     )
 
     path = runner.solution_path(submission)
-    assert path == Path("/dummy") if False else path
-    assert str(path).endswith("LeetCode/C++/Array/Easy/1-two-sum/1-two-sum.cpp")
+    assert path == runner.ROOT / "LeetCode/C++/Array/Easy/1-two-sum/1-two-sum.cpp"
 
 
 def test_leetcode_problem_readme_contains_metadata():

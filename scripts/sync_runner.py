@@ -12,6 +12,12 @@ from scripts.problem_readme import build_problem_readme, extract_problem_descrip
 DESCRIPTION_BY_PROBLEM: dict[str, str] = {}
 
 
+_original_solution_path = sync.solution_path
+_original_write_solution = sync.write_solution
+_original_commit_submission = sync.commit_submission
+_original_migrate = sync.migrate_legacy_records
+
+
 def _safe_path_component(value: str, fallback: str = "Other") -> str:
     # Preserve language symbols such as C++ in directory names.
     value = re.sub(r"[^A-Za-z0-9._ +#-]+", "", value).strip()
@@ -31,6 +37,10 @@ def _problem_path(submission: sync.Submission) -> Path:
 
 
 def solution_path(submission: sync.Submission) -> Path:
+    # Keep LeetCode/HackerRank on their existing behavior. The problem-folder
+    # layout is intentionally applied to CodeChef only for this change.
+    if submission.platform.lower() != "codechef":
+        return _original_solution_path(submission)
     problem_dir = _problem_path(submission)
     filename = f"{_safe_path_component(submission.problem_id or submission.title, 'Question')}.{sync._extension(submission.language)}"
     return problem_dir / filename
@@ -63,19 +73,16 @@ def _fetch_problem_descriptions(problem_ids: Iterable[str]) -> None:
 # The existing CodeChef adapter continues to handle authentication, accepted
 # submissions, source extraction, title, difficulty, and tags. This runner only
 # adds the problem-statement/documentation layer around that adapter.
-_original_fetch_details = codechef.fetch_recent_accepted_details
-
-
-def fetch_recent_accepted_details(limit: int = 20):
-    return _original_fetch_details(limit)
-
-
-codechef.fetch_recent_accepted_details = fetch_recent_accepted_details
-
 
 def write_solution(submission: sync.Submission) -> Path:
-    # Only fetch a statement for a submission that survived duplicate/baseline
-    # filtering and is actually going to be written to the repository.
+    if submission.platform.lower() != "codechef":
+        path = _original_solution_path(submission)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(submission.source.rstrip() + "\n", encoding="utf-8")
+        return path
+
+    # Only fetch a statement for a CodeChef submission that survived
+    # duplicate/baseline filtering and is actually going to be written.
     _fetch_problem_descriptions([submission.problem_id])
 
     path = solution_path(submission)
@@ -95,6 +102,10 @@ def write_solution(submission: sync.Submission) -> Path:
 
 
 def commit_submission(submission: sync.Submission, path: Path) -> None:
+    if submission.platform.lower() != "codechef":
+        _original_commit_submission(submission, path)
+        return
+
     sync._git(
         "add",
         str(path.relative_to(sync.ROOT)),
@@ -103,9 +114,6 @@ def commit_submission(submission: sync.Submission, path: Path) -> None:
     )
     message = f"feat: add {submission.platform} - {submission.title} ({submission.language})"
     sync._git("commit", "-m", message[:180])
-
-
-_original_migrate = sync.migrate_legacy_records
 
 
 def migrate_legacy_records(records):
@@ -117,7 +125,9 @@ def migrate_legacy_records(records):
     ]
 
     if codechef_records:
-        _fetch_problem_descriptions(record["problem_id"] for record in codechef_records)
+        # Only the one-time migration needs to fetch statements for existing
+        # CodeChef records. Future runs skip this once README.md exists.
+        needs_readme = []
         for record in codechef_records:
             submission = sync.Submission(
                 platform="CodeChef",
@@ -134,18 +144,23 @@ def migrate_legacy_records(records):
                 difficulty_rating=record.get("difficulty_rating"),
             )
             path = solution_path(submission)
-            path.parent.mkdir(parents=True, exist_ok=True)
             readme = path.parent / "README.md"
             if not readme.exists():
-                readme.write_text(
-                    build_problem_readme(
-                        submission,
-                        submission.source,
-                        DESCRIPTION_BY_PROBLEM[submission.problem_id],
-                    ),
-                    encoding="utf-8",
-                )
-                changed = True
+                needs_readme.append((record, submission, path, readme))
+
+        _fetch_problem_descriptions(submission.problem_id for _, submission, _, _ in needs_readme)
+        for record, submission, path, readme in needs_readme:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            readme.write_text(
+                build_problem_readme(
+                    submission,
+                    submission.source,
+                    DESCRIPTION_BY_PROBLEM[submission.problem_id],
+                ),
+                encoding="utf-8",
+            )
+            changed = True
+
     return changed
 
 

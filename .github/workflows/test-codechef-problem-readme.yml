@@ -1,0 +1,60 @@
+name: Test CodeChef problem statement extraction (read-only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Extract a live CodeChef problem statement
+        env:
+          CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
+          CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
+        run: |
+          test -n "$CODECHEF_USERNAME" || { echo "CODECHEF_USERNAME secret is missing."; exit 1; }
+          test -n "$CODECHEF_PASSWORD" || { echo "CODECHEF_PASSWORD secret is missing."; exit 1; }
+          python - <<'PY'
+          from scripts.codechef_adapter import _credentials, _login, build_driver, BASE_URL, quote, By, EC, WebDriverWait
+          from scripts.codechef_adapter import fetch_recent_accepted
+          from scripts.problem_readme import extract_problem_description
+
+          items = fetch_recent_accepted(1)
+          if not items:
+              raise SystemExit("No accepted CodeChef submission was returned.")
+
+          item = items[0]
+          username, password = _credentials()
+          driver = build_driver()
+          try:
+              _login(driver, username, password)
+              driver.get(f"{BASE_URL}/problems/{quote(item.problem_id)}")
+              WebDriverWait(driver, 25).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+              description = extract_problem_description(driver.page_source, item.problem_id)
+              if not description:
+                  raise SystemExit(f"Problem statement extraction returned empty for {item.problem_id}.")
+              print(f"Problem statement extraction passed: {item.problem_id}")
+              print(f"Extracted characters: {len(description)}")
+              print("Preview:")
+              print(description[:500])
+          finally:
+              driver.quit()
+
+      - name: Run README unit tests
+        run: python -m pytest tests/test_problem_readme.py -q

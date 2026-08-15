@@ -34,6 +34,11 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      - name: Configure Git identity
+        run: |
+          git config user.name "Lakshay-M07"
+          git config user.email "222706893+Lakshay-M07@users.noreply.github.com"
+
       - name: Test LeetCode authentication (read-only)
         env:
           LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
@@ -50,19 +55,5 @@ jobs:
           HACKERRANK_SESSION: ${{ secrets.HACKERRANK_SESSION }}
         run: python scripts/sync_submissions.py
 
-      - name: Show repository changes
+      - name: Verify repository state
         run: git status --short
-
-      - name: Commit and push synced solutions
-        run: |
-          git config user.name "Lakshay-M07"
-          git config user.email "222706893+Lakshay-M07@users.noreply.github.com"
-
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "No new accepted submissions to commit."
-            exit 0
-          fi
-
-          git add .
-          git commit -m "chore: sync accepted DSA submissions"
-          git push

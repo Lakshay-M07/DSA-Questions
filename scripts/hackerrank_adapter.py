@@ -33,14 +33,26 @@ class HackerRankSubmission:
     description: str | None = None
 
 class HackerRankClient:
-    """Read-only HackerRank Community client using the current verified REST flow."""
-    def __init__(self, email: str, password: str, session: requests.Session | None = None):
+    """Read-only HackerRank Community client.
+
+    If HACKERRANK_SESSION_ID is supplied, it is used as the browser's
+    authenticated _hrank_session cookie and password login is skipped.
+    """
+    def __init__(self, email: str | None = None, password: str | None = None, session: requests.Session | None = None, session_id: str | None = None):
         self.email, self.password = email, password
         self.session = session or requests.Session()
         self.session.headers.update(HEADERS)
+        self.session_id = session_id
         self._authenticated = False
+        if session_id:
+            self.session.cookies.set("_hrank_session", session_id, domain=".hackerrank.com", path="/")
+            self._authenticated = True
 
     def authenticate(self) -> None:
+        if self._authenticated:
+            return
+        if not self.email or not self.password:
+            raise RuntimeError("HackerRank credentials are missing")
         page = self.session.get(LOGIN_PAGE, timeout=30)
         page.raise_for_status()
         soup = BeautifulSoup(page.text, "html.parser")
@@ -66,7 +78,7 @@ class HackerRankClient:
         try: return response.json()
         except ValueError as exc: raise RuntimeError(f"HackerRank REST endpoint returned non-JSON data: {response.url}") from exc
 
-    def fetch_submissions(self, limit: int = 100) -> list[dict[str, Any]]:
+    def fetch_submissions(self, limit: int = 1000) -> list[dict[str, Any]]:
         data = self._get(SUBMISSIONS_URL, offset=0, limit=limit)
         models = data.get("models") if isinstance(data, dict) else None
         if not isinstance(models, list): raise RuntimeError("HackerRank submissions response does not contain a models list")
@@ -83,14 +95,10 @@ class HackerRankClient:
 
 def normalize_language(value: Any) -> tuple[str, str]:
     text = re.sub(r"\s+", " ", str(value or "").strip().lower())
-    # Check exact names first so C++ is never classified as C merely because
-    # the C entry is a substring of "C++".
     exact = LANGUAGE_EXTENSIONS.get(text)
-    if exact:
-        return exact
+    if exact: return exact
     for key in sorted(LANGUAGE_EXTENSIONS, key=len, reverse=True):
-        if key in text:
-            return LANGUAGE_EXTENSIONS[key]
+        if key in text: return LANGUAGE_EXTENSIONS[key]
     if "kotlin" in text: return "Kotlin", ".kt"
     if "ruby" in text: return "Ruby", ".rb"
     if text == "go" or text.startswith("go "): return "Go", ".go"

@@ -1,0 +1,25 @@
+name: Test HackerRank REST Authentication
+
+# Read-only authentication/submission probe. It does not create submissions or modify the account.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Test authenticated HackerRank REST access
+        env:
+          HACKERRANK_EMAIL: ${{ secrets.HACKERRANK_EMAIL }}
+          HACKERRANK_PASSWORD: ${{ secrets.HACKERRANK_PASSWORD }}
+        run: python scripts/test_hackerrank_rest_auth.py

@@ -1,13 +1,13 @@
 import os
 import time
+from pathlib import Path
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-LOGIN_URL = "https://www.hackerrank.com/auth/login"
+LOGIN_URL = "https://www.hackerrank.com/login.html"
 SUBMISSIONS_URL = "https://www.hackerrank.com/submissions/all"
 
 
@@ -17,6 +17,27 @@ def visible_input(driver, selectors):
             if element.is_displayed() and element.is_enabled():
                 return element
     return None
+
+
+def dump_login_diagnostics(driver):
+    Path("hackerrank-login-diagnostics").mkdir(exist_ok=True)
+    driver.save_screenshot("hackerrank-login-diagnostics/login.png")
+    Path("hackerrank-login-diagnostics/page.html").write_text(
+        driver.page_source, encoding="utf-8"
+    )
+    print(f"Login title: {driver.title}")
+    print(f"Login URL: {driver.current_url.split('?')[0]}")
+    print("Visible body text (first 3000 chars):")
+    print(driver.find_element(By.TAG_NAME, "body").text[:3000])
+    print("Input elements found:")
+    for i, element in enumerate(driver.find_elements(By.CSS_SELECTOR, "input")):
+        print(
+            f"  input[{i}] type={element.get_attribute('type')!r} "
+            f"name={element.get_attribute('name')!r} "
+            f"placeholder={element.get_attribute('placeholder')!r} "
+            f"aria-label={element.get_attribute('aria-label')!r} "
+            f"displayed={element.is_displayed()} enabled={element.is_enabled()}"
+        )
 
 
 def main():
@@ -33,27 +54,48 @@ def main():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1440,1200")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--lang=en-US")
 
     driver = webdriver.Chrome(options=options)
-    wait = WebDriverWait(driver, 20)
+    wait = WebDriverWait(driver, 30)
 
     try:
         print("Opening HackerRank login page...")
         driver.get(LOGIN_URL)
 
-        email_input = wait.until(
-            lambda d: visible_input(
-                d,
-                [
-                    'input[type="email"]',
-                    'input[name="email"]',
-                    'input[name="username"]',
-                    'input[placeholder*="Email"]',
-                    'input[placeholder*="email"]',
-                    'input[placeholder*="Username"]',
-                    'input[placeholder*="username"]',
-                ],
+        try:
+            wait.until(
+                lambda d: visible_input(
+                    d,
+                    [
+                        'input[type="email"]',
+                        'input[name="email"]',
+                        'input[name="username"]',
+                        'input[placeholder*="Email"]',
+                        'input[placeholder*="email"]',
+                        'input[placeholder*="Username"]',
+                        'input[placeholder*="username"]',
+                        'input[placeholder*="Your username or email"]',
+                    ],
+                )
             )
+        except TimeoutException:
+            dump_login_diagnostics(driver)
+            raise
+
+        email_input = visible_input(
+            driver,
+            [
+                'input[type="email"]',
+                'input[name="email"]',
+                'input[name="username"]',
+                'input[placeholder*="Email"]',
+                'input[placeholder*="email"]',
+                'input[placeholder*="Username"]',
+                'input[placeholder*="username"]',
+                'input[placeholder*="Your username or email"]',
+            ],
         )
         password_input = wait.until(
             lambda d: visible_input(
@@ -63,6 +105,7 @@ def main():
                     'input[name="password"]',
                     'input[placeholder*="Password"]',
                     'input[placeholder*="password"]',
+                    'input[placeholder*="Your password"]',
                 ],
             )
         )
@@ -84,12 +127,10 @@ def main():
             raise RuntimeError("Could not find the HackerRank login button.")
 
         submit.click()
-
-        # Give redirects/client-side authentication a short window to settle.
-        time.sleep(3)
+        time.sleep(5)
         print(f"Post-login URL: {driver.current_url.split('?')[0]}")
 
-        if "/auth/login" in driver.current_url:
+        if "/auth/login" in driver.current_url or "/login.html" in driver.current_url:
             body = driver.find_element(By.TAG_NAME, "body").text.lower()
             if "captcha" in body or "recaptcha" in body:
                 raise RuntimeError("HackerRank presented a CAPTCHA/anti-bot challenge during login.")
@@ -100,7 +141,7 @@ def main():
         print("Opening authenticated submissions page...")
         driver.get(SUBMISSIONS_URL)
         wait.until(lambda d: "/submissions" in d.current_url)
-        time.sleep(2)
+        time.sleep(3)
 
         body = driver.find_element(By.TAG_NAME, "body").text
         print(f"Authenticated submissions URL: {driver.current_url.split('?')[0]}")

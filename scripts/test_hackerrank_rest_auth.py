@@ -1,4 +1,12 @@
 import os
+import sys
+from pathlib import Path
+
+# Make the repository root importable when this file is executed directly as
+# `python scripts/test_hackerrank_rest_auth.py` in GitHub Actions.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from scripts.hackerrank_adapter import HackerRankClient, parse_submission
 

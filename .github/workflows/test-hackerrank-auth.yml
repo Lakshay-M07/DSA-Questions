@@ -1,13 +1,9 @@
 name: Test HackerRank Authentication
 
-# Read-only authentication and submission discovery check for HackerRank Community.
+# Read-only authentication and submission-page access check for HackerRank Community.
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'scripts/test_hackerrank_auth.py'
-      - '.github/workflows/test-hackerrank-auth.yml'
 
 permissions:
   contents: read
@@ -42,3 +38,11 @@ jobs:
           HACKERRANK_EMAIL: ${{ secrets.HACKERRANK_EMAIL }}
           HACKERRANK_PASSWORD: ${{ secrets.HACKERRANK_PASSWORD }}
         run: python scripts/test_hackerrank_auth.py
+
+      - name: Upload HackerRank login diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hackerrank-login-diagnostics
+          path: hackerrank-login-diagnostics/
+          if-no-files-found: ignore

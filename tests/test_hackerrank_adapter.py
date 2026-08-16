@@ -49,6 +49,8 @@ def test_non_accepted_submission_is_ignored():
 
 def test_language_detection():
     assert normalize_language("Python 3") == ("Python", ".py")
+    assert normalize_language("pypy3") == ("Python", ".py")
+    assert normalize_language("pypy") == ("Python", ".py")
     assert normalize_language("C++") == ("C++", ".cpp")
     assert normalize_language("cpp") == ("C++", ".cpp")
     assert normalize_language("JavaScript") == ("JavaScript", ".js")

@@ -22,6 +22,7 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - name: Verify current authenticated HackerRank REST client
         env:
+          HACKERRANK_SESSION_ID: ${{ secrets.HACKERRANK_SESSION_ID }}
           HACKERRANK_EMAIL: ${{ secrets.HACKERRANK_EMAIL }}
           HACKERRANK_PASSWORD: ${{ secrets.HACKERRANK_PASSWORD }}
         run: |
@@ -29,12 +30,16 @@ jobs:
           import os
           from scripts.hackerrank_adapter import HackerRankClient, parse_submission, extract_problem_metadata
 
-          client = HackerRankClient(os.environ['HACKERRANK_EMAIL'], os.environ['HACKERRANK_PASSWORD'])
+          client = HackerRankClient(
+              os.environ.get('HACKERRANK_EMAIL'),
+              os.environ.get('HACKERRANK_PASSWORD'),
+              session_id=os.environ.get('HACKERRANK_SESSION_ID'),
+          )
           records = client.fetch_submissions(limit=10)
           print(f"Current submission records: {len(records)}")
           print(f"Current accepted records: {sum(parse_submission(x) is not None for x in records)}")
 
-          challenge = client.fetch_challenge('solve-me-first')
+          challenge = client.fetch_challenge('py-hello-world')
           title, difficulty, category, tags, description = extract_problem_metadata(challenge)
           print(f"Challenge metadata reachable: title={title!r}, difficulty={difficulty!r}, category={category!r}, tags={tags!r}")
           print(f"Challenge description present: {bool(description)}")

@@ -40,6 +40,16 @@ def summarize_json(value):
     return type(value).__name__
 
 
+def inspect_submission_payload(data, label):
+    models = data.get("models") if isinstance(data, dict) else None
+    if isinstance(models, list):
+        accepted = sum(item.get("status") == "Accepted" for item in models if isinstance(item, dict))
+        print(f"{label}: MODELS={len(models)} ACCEPTED={accepted}")
+        return models
+    print(f"{label}: JSON SHAPE={summarize_json(data)}")
+    return []
+
+
 def main():
     login = os.environ.get("HACKERRANK_EMAIL")
     password = os.environ.get("HACKERRANK_PASSWORD")
@@ -83,7 +93,6 @@ def main():
         session.headers["x-csrf-token"] = returned_csrf
         print("Authenticated REST session returned a CSRF token.")
 
-    # Read-only identity check. Never print email, password, tokens, or cookies.
     identity = None
     for path in ("/rest/auth/session", "/rest/auth/user", "/rest/users/current"):
         result = session.get(BASE_URL + path, timeout=30)
@@ -97,24 +106,52 @@ def main():
             identity = candidate
             print("IDENTITY ENDPOINT:", path)
             break
-
     print("AUTHENTICATED ACCOUNT USERNAME:", find_identity(identity or payload) or "not exposed")
 
-    # Probe the known public profile REST resource and likely user-scoped submission routes.
     print(f"Probing HackerRank profile for @{HACKERRANK_USERNAME}...")
     profile_url = f"{BASE_URL}/rest/contests/master/hackers/{HACKERRANK_USERNAME}/profile"
     profile = session.get(profile_url, timeout=30)
     print("PROFILE STATUS:", profile.status_code)
     print("PROFILE CONTENT-TYPE:", profile.headers.get("content-type"))
+    hacker_id = None
     if profile.status_code == 200:
         try:
             profile_data = profile.json()
-            print("PROFILE JSON SHAPE:", summarize_json(profile_data))
             profile_model = profile_data.get("model") if isinstance(profile_data, dict) else None
+            print("PROFILE JSON SHAPE:", summarize_json(profile_data))
             if isinstance(profile_model, dict):
+                hacker_id = profile_model.get("id")
                 print("PROFILE MODEL KEYS:", ", ".join(sorted(profile_model.keys())))
+                print("PROFILE USERNAME FIELD:", profile_model.get("username", "not exposed"))
+                print("PROFILE USER ID PRESENT:", bool(hacker_id))
         except ValueError:
             print("PROFILE RESPONSE: non-JSON")
+
+    query_variants = [
+        {"username": HACKERRANK_USERNAME},
+        {"hacker": HACKERRANK_USERNAME},
+        {"user": HACKERRANK_USERNAME},
+    ]
+    if hacker_id is not None:
+        query_variants.extend([
+            {"hacker_id": hacker_id},
+            {"user_id": hacker_id},
+            {"hackerId": hacker_id},
+            {"userId": hacker_id},
+        ])
+
+    print("Probing authenticated submission endpoint with user filters...")
+    for params in query_variants:
+        params = {"offset": 0, "limit": 1000, **params}
+        result = session.get(f"{BASE_URL}/rest/contests/master/submissions/", params=params, timeout=30)
+        label = "&".join(f"{key}={value}" for key, value in params.items() if key not in {"offset", "limit"})
+        print(f"FILTER {label} -> HTTP {result.status_code}")
+        if result.status_code != 200:
+            continue
+        try:
+            inspect_submission_payload(result.json(), f"  {label}")
+        except ValueError:
+            print("  JSON: no")
 
     candidate_paths = [
         f"/rest/contests/master/hackers/{HACKERRANK_USERNAME}/submissions/?offset=0&limit=1000",
@@ -128,16 +165,9 @@ def main():
         if result.status_code != 200:
             continue
         try:
-            data = result.json()
+            inspect_submission_payload(result.json(), f"  {path}")
         except ValueError:
             print("  JSON: no")
-            continue
-        print("  JSON SHAPE:", summarize_json(data))
-        if isinstance(data, dict):
-            models = data.get("models")
-            if isinstance(models, list):
-                accepted = sum(item.get("status") == "Accepted" for item in models if isinstance(item, dict))
-                print(f"  MODELS: {len(models)}; ACCEPTED: {accepted}")
 
     print("Testing authenticated personal submissions endpoint...")
     submissions = session.get(SUBMISSIONS_URL, timeout=30)
@@ -151,13 +181,9 @@ def main():
     except ValueError as exc:
         raise RuntimeError("HackerRank submissions endpoint did not return JSON.") from exc
 
-    models = data.get("models") if isinstance(data, dict) else None
-    if not isinstance(models, list):
-        raise RuntimeError("HackerRank submissions response has no 'models' list.")
-
-    accepted = sum(item.get("status") == "Accepted" for item in models if isinstance(item, dict))
+    models = inspect_submission_payload(data, "UNFILTERED")
     print(f"Submission records returned: {len(models)}")
-    print(f"Accepted records in returned page: {accepted}")
+    print(f"Accepted records in returned page: {sum(item.get('status') == 'Accepted' for item in models if isinstance(item, dict))}")
     print("HackerRank read-only authentication/submissions discovery test passed.")
 
 

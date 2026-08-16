@@ -1,163 +1,121 @@
 import os
-import time
-from pathlib import Path
 
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+import requests
 
-LOGIN_URL = "https://www.hackerrank.com/login.html"
-SUBMISSIONS_URL = "https://www.hackerrank.com/submissions/all"
+BASE_URL = "https://www.hackerrank.com"
+LOGIN_URL = f"{BASE_URL}/auth/login"
+REST_LOGIN = f"{BASE_URL}/rest/auth/login"
+SUBMISSIONS_URL = f"{BASE_URL}/rest/contests/master/submissions/?offset=0&limit=1000"
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36",
+    "Accept": "application/json,text/plain,*/*",
+}
 
 
-def visible_input(driver, selectors):
-    for selector in selectors:
-        for element in driver.find_elements(By.CSS_SELECTOR, selector):
-            if element.is_displayed() and element.is_enabled():
-                return element
+def find_identity(value):
+    if isinstance(value, dict):
+        for key in ("username", "username_slug", "handle", "user_name", "name"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+        for child in value.values():
+            found = find_identity(child)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for child in value:
+            found = find_identity(child)
+            if found:
+                return found
     return None
 
 
-def dump_login_diagnostics(driver):
-    Path("hackerrank-login-diagnostics").mkdir(exist_ok=True)
-    driver.save_screenshot("hackerrank-login-diagnostics/login.png")
-    Path("hackerrank-login-diagnostics/page.html").write_text(
-        driver.page_source, encoding="utf-8"
-    )
-    print(f"Login title: {driver.title}")
-    print(f"Login URL: {driver.current_url.split('?')[0]}")
-    print("Visible body text (first 3000 chars):")
-    print(driver.find_element(By.TAG_NAME, "body").text[:3000])
-    print("Input elements found:")
-    for i, element in enumerate(driver.find_elements(By.CSS_SELECTOR, "input")):
-        print(
-            f"  input[{i}] type={element.get_attribute('type')!r} "
-            f"name={element.get_attribute('name')!r} "
-            f"placeholder={element.get_attribute('placeholder')!r} "
-            f"aria-label={element.get_attribute('aria-label')!r} "
-            f"displayed={element.is_displayed()} enabled={element.is_enabled()}"
-        )
-
-
 def main():
-    email = os.environ.get("HACKERRANK_EMAIL")
+    login = os.environ.get("HACKERRANK_EMAIL")
     password = os.environ.get("HACKERRANK_PASSWORD")
+    if not login or not password:
+        raise SystemExit("HackerRank credentials are missing.")
 
-    if not email:
-        raise SystemExit("HACKERRANK_EMAIL secret is missing.")
-    if not password:
-        raise SystemExit("HACKERRANK_PASSWORD secret is missing.")
+    session = requests.Session()
+    session.headers.update(HEADERS)
 
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1440,1200")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--lang=en-US")
+    print("Opening current HackerRank Community login page...")
+    page = session.get(LOGIN_URL, timeout=30)
+    print("LOGIN PAGE STATUS:", page.status_code)
+    if page.status_code != 200:
+        raise RuntimeError(f"Current HackerRank login page returned HTTP {page.status_code}.")
 
-    driver = webdriver.Chrome(options=options)
-    wait = WebDriverWait(driver, 30)
+    print("Testing HackerRank Community REST authentication...")
+    response = session.post(
+        REST_LOGIN,
+        data={
+            "login": login,
+            "password": password,
+            "remember_me": "false",
+            "fallback": "true",
+        },
+        headers={"Referer": LOGIN_URL},
+        timeout=30,
+        allow_redirects=False,
+    )
+    print("REST LOGIN STATUS:", response.status_code)
+    print("REST LOGIN CONTENT-TYPE:", response.headers.get("content-type"))
+    if response.status_code not in (200, 201, 202):
+        raise RuntimeError(f"HackerRank REST authentication was not accepted (HTTP {response.status_code}).")
 
     try:
-        print("Opening HackerRank login page...")
-        driver.get(LOGIN_URL)
+        payload = response.json()
+    except ValueError as exc:
+        raise RuntimeError("HackerRank REST login did not return JSON.") from exc
 
+    returned_csrf = payload.get("csrf_token") if isinstance(payload, dict) else None
+    if returned_csrf:
+        session.headers["x-csrf-token"] = returned_csrf
+        print("Authenticated REST session returned a CSRF token.")
+
+    # Read-only identity check. Never print email, password, tokens, or cookies.
+    identity = None
+    for path in ("/rest/auth/session", "/rest/auth/user", "/rest/users/current"):
+        result = session.get(BASE_URL + path, timeout=30)
+        if result.status_code != 200:
+            continue
         try:
-            wait.until(
-                lambda d: visible_input(
-                    d,
-                    [
-                        'input[type="email"]',
-                        'input[name="email"]',
-                        'input[name="username"]',
-                        'input[placeholder*="Email"]',
-                        'input[placeholder*="email"]',
-                        'input[placeholder*="Username"]',
-                        'input[placeholder*="username"]',
-                        'input[placeholder*="Your username or email"]',
-                    ],
-                )
-            )
-        except TimeoutException:
-            dump_login_diagnostics(driver)
-            raise
+            candidate = result.json()
+        except ValueError:
+            continue
+        if isinstance(candidate, (dict, list)):
+            identity = candidate
+            print("IDENTITY ENDPOINT:", path)
+            break
 
-        email_input = visible_input(
-            driver,
-            [
-                'input[type="email"]',
-                'input[name="email"]',
-                'input[name="username"]',
-                'input[placeholder*="Email"]',
-                'input[placeholder*="email"]',
-                'input[placeholder*="Username"]',
-                'input[placeholder*="username"]',
-                'input[placeholder*="Your username or email"]',
-            ],
-        )
-        password_input = wait.until(
-            lambda d: visible_input(
-                d,
-                [
-                    'input[type="password"]',
-                    'input[name="password"]',
-                    'input[placeholder*="Password"]',
-                    'input[placeholder*="password"]',
-                    'input[placeholder*="Your password"]',
-                ],
-            )
-        )
+    if identity is not None:
+        print("AUTHENTICATED ACCOUNT USERNAME:", find_identity(identity) or "not exposed")
+    else:
+        # Some HackerRank deployments return identity information directly from login.
+        print("AUTHENTICATED ACCOUNT USERNAME:", find_identity(payload) or "not exposed")
+        print("IDENTITY ENDPOINT: login response")
 
-        email_input.clear()
-        email_input.send_keys(email)
-        password_input.clear()
-        password_input.send_keys(password)
+    print("Testing authenticated personal submissions endpoint...")
+    submissions = session.get(SUBMISSIONS_URL, timeout=30)
+    print("SUBMISSIONS STATUS:", submissions.status_code)
+    print("SUBMISSIONS CONTENT-TYPE:", submissions.headers.get("content-type"))
+    if submissions.status_code != 200:
+        raise RuntimeError(f"Authenticated HackerRank submissions endpoint returned HTTP {submissions.status_code}.")
 
-        submit = visible_input(
-            driver,
-            [
-                'button[type="submit"]',
-                'input[type="submit"]',
-                'button',
-            ],
-        )
-        if submit is None:
-            raise RuntimeError("Could not find the HackerRank login button.")
+    try:
+        data = submissions.json()
+    except ValueError as exc:
+        raise RuntimeError("HackerRank submissions endpoint did not return JSON.") from exc
 
-        submit.click()
-        time.sleep(5)
-        print(f"Post-login URL: {driver.current_url.split('?')[0]}")
+    models = data.get("models") if isinstance(data, dict) else None
+    if not isinstance(models, list):
+        raise RuntimeError("HackerRank submissions response has no 'models' list.")
 
-        if "/auth/login" in driver.current_url or "/login.html" in driver.current_url:
-            body = driver.find_element(By.TAG_NAME, "body").text.lower()
-            if "captcha" in body or "recaptcha" in body:
-                raise RuntimeError("HackerRank presented a CAPTCHA/anti-bot challenge during login.")
-            raise RuntimeError("HackerRank login did not leave the login page.")
-
-        print("HackerRank email/password authentication succeeded.")
-
-        print("Opening authenticated submissions page...")
-        driver.get(SUBMISSIONS_URL)
-        wait.until(lambda d: "/submissions" in d.current_url)
-        time.sleep(3)
-
-        body = driver.find_element(By.TAG_NAME, "body").text
-        print(f"Authenticated submissions URL: {driver.current_url.split('?')[0]}")
-
-        lower_body = body.lower()
-        if "you have not made any submissions yet" in lower_body:
-            print("Submission history is empty, as expected for this account.")
-        else:
-            print("Submission page is accessible; no assumption is made about submission count yet.")
-
-        print("HackerRank read-only authentication/submissions access test passed.")
-
-    except TimeoutException as exc:
-        raise RuntimeError("Timed out while interacting with the current HackerRank login/submissions UI.") from exc
-    finally:
-        driver.quit()
+    accepted = sum(item.get("status") == "Accepted" for item in models if isinstance(item, dict))
+    print(f"Submission records returned: {len(models)}")
+    print(f"Accepted records in returned page: {accepted}")
+    print("HackerRank read-only authentication/submissions access test passed.")
 
 
 if __name__ == "__main__":

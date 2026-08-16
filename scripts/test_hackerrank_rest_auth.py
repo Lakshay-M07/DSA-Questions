@@ -8,7 +8,8 @@ from bs4 import BeautifulSoup
 BASE_URL = "https://www.hackerrank.com"
 LOGIN_PAGE = f"{BASE_URL}/auth/login"
 REST_LOGIN = f"{BASE_URL}/rest/auth/login"
-SUBMISSIONS_URL = f"{BASE_URL}/rest/contests/master/submissions/?offset=0&limit=10"
+SUBMISSIONS_URL = f"{BASE_URL}/rest/contests/master/submissions/?offset=0&limit=1000"
+SUBMISSIONS_PAGE = f"{BASE_URL}/submissions/all"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36",
@@ -64,12 +65,8 @@ def main():
 
     print("REST LOGIN STATUS:", response.status_code)
     print("REST LOGIN CONTENT-TYPE:", response.headers.get("content-type"))
-
     if response.status_code not in (200, 201, 202):
-        # Do not print the response body: it can contain account/session details.
-        raise RuntimeError(
-            f"HackerRank REST authentication was not accepted (HTTP {response.status_code})."
-        )
+        raise RuntimeError(f"HackerRank REST authentication was not accepted (HTTP {response.status_code}).")
 
     try:
         payload = response.json()
@@ -88,25 +85,35 @@ def main():
     submissions = session.get(SUBMISSIONS_URL, timeout=30)
     print("SUBMISSIONS STATUS:", submissions.status_code)
     print("SUBMISSIONS CONTENT-TYPE:", submissions.headers.get("content-type"))
-
     if submissions.status_code != 200:
-        raise RuntimeError(
-            f"Authenticated HackerRank submissions endpoint returned HTTP {submissions.status_code}."
-        )
+        raise RuntimeError(f"Authenticated HackerRank submissions endpoint returned HTTP {submissions.status_code}.")
 
-    try:
-        data = submissions.json()
-    except ValueError as exc:
-        raise RuntimeError("HackerRank submissions endpoint did not return JSON.") from exc
-
-    models = data.get("models")
+    data = submissions.json()
+    models = data.get("models") if isinstance(data, dict) else None
     if not isinstance(models, list):
         raise RuntimeError("HackerRank submissions response has no 'models' list.")
 
     accepted = sum(item.get("status") == "Accepted" for item in models if isinstance(item, dict))
     print(f"Submission records returned: {len(models)}")
     print(f"Accepted records in returned page: {accepted}")
-    print("Authenticated HackerRank REST submission access test passed.")
+    print("Submission API top-level keys:", ", ".join(sorted(data.keys())) if isinstance(data, dict) else "unknown")
+
+    if models:
+        print("The REST endpoint returned submission records; the adapter can consume them.")
+        return
+
+    print("REST endpoint returned zero records; probing the authenticated submissions web page...")
+    page = session.get(SUBMISSIONS_PAGE, timeout=30)
+    print("SUBMISSIONS PAGE STATUS:", page.status_code)
+    print("SUBMISSIONS PAGE CONTENT-TYPE:", page.headers.get("content-type"))
+    print("SUBMISSIONS PAGE HTML BYTES:", len(page.content))
+    page_soup = BeautifulSoup(page.text, "html.parser")
+    submission_links = page_soup.select('a[href*="/submissions/"]')
+    challenge_links = page_soup.select('a[href*="/challenges/"]')
+    print(f"Submission links found in page HTML: {len(submission_links)}")
+    print(f"Challenge links found in page HTML: {len(challenge_links)}")
+    print(f"Script tags on submissions page: {len(page_soup.find_all('script'))}")
+    print("Authenticated HackerRank REST access succeeded; discovery probe completed.")
 
 
 if __name__ == "__main__":

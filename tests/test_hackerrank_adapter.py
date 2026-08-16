@@ -24,6 +24,25 @@ def test_accepted_submission_is_normalized():
     assert result.extension == ".cpp"
 
 
+def test_current_nested_submission_shape_is_normalized():
+    result = parse_submission({
+        "id": 67890,
+        "status": "Accepted",
+        "language": "cpp",
+        "challenge": {
+            "id": 99,
+            "slug": "solve-me-first",
+            "name": "Solve Me First",
+        },
+    })
+    assert result is not None
+    assert result.problem_id == "99"
+    assert result.slug == "solve-me-first"
+    assert result.title == "Solve Me First"
+    assert result.language == "C++"
+    assert result.extension == ".cpp"
+
+
 def test_non_accepted_submission_is_ignored():
     assert parse_submission({"id": 1, "challenge_slug": "x", "language": "Python", "status": "Wrong Answer"}) is None
 
@@ -31,12 +50,18 @@ def test_non_accepted_submission_is_ignored():
 def test_language_detection():
     assert normalize_language("Python 3") == ("Python", ".py")
     assert normalize_language("C++") == ("C++", ".cpp")
+    assert normalize_language("cpp") == ("C++", ".cpp")
     assert normalize_language("JavaScript") == ("JavaScript", ".js")
 
 
 def test_source_extraction_handles_nested_current_or_legacy_shape():
     payload = {"submission": {"code": "#include <iostream>\nint main() {}"}}
     assert extract_source(payload) == "#include <iostream>\nint main() {}"
+
+
+def test_source_extraction_handles_current_model_shape():
+    payload = {"model": {"code": "print('hello')"}}
+    assert extract_source(payload) == "print('hello')"
 
 
 def test_metadata_extraction():
@@ -52,6 +77,23 @@ def test_metadata_extraction():
     assert category == "Data Structures"
     assert tags == ("Array", "Implementation")
     assert description == "Work with\narrays."
+
+
+def test_metadata_extraction_handles_current_model_shape():
+    title, difficulty, category, tags, description = extract_problem_metadata({
+        "model": {
+            "name": "Solve Me First",
+            "difficulty_name": "Easy",
+            "track": {"track_name": "Algorithms"},
+            "tags": [{"name": "Warmup"}],
+            "description": "<p>Solve the problem.</p>",
+        }
+    })
+    assert title == "Solve Me First"
+    assert difficulty == "Easy"
+    assert category == "Algorithms"
+    assert tags == ("Warmup",)
+    assert description == "Solve the problem."
 
 
 def test_slugify():

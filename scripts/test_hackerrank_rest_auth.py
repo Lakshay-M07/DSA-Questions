@@ -81,6 +81,44 @@ def main():
     cookie_names = sorted(cookie.name for cookie in session.cookies)
     print("Authenticated session established; cookie names:", ", ".join(cookie_names))
 
+    # Read-only identity check. Do not print email, password, tokens, or cookies.
+    identity_payload = None
+    for identity_path in ("/rest/auth/session", "/rest/auth/user", "/rest/users/current"):
+        identity = session.get(BASE_URL + identity_path, timeout=30)
+        if identity.status_code != 200:
+            continue
+        try:
+            candidate = identity.json()
+        except ValueError:
+            continue
+        if isinstance(candidate, dict):
+            identity_payload = candidate
+            print("IDENTITY ENDPOINT:", identity_path)
+            break
+
+    if identity_payload is None:
+        print("IDENTITY CHECK: no supported current-user endpoint returned JSON; continuing.")
+    else:
+        def find_identity(value):
+            if isinstance(value, dict):
+                for key in ("username", "username_slug", "handle", "user_name", "name"):
+                    candidate = value.get(key)
+                    if isinstance(candidate, str) and candidate.strip():
+                        return candidate.strip()
+                for child in value.values():
+                    found = find_identity(child)
+                    if found:
+                        return found
+            elif isinstance(value, list):
+                for child in value:
+                    found = find_identity(child)
+                    if found:
+                        return found
+            return None
+
+        identity_name = find_identity(identity_payload)
+        print("AUTHENTICATED ACCOUNT USERNAME:", identity_name or "not exposed")
+
     print("Testing authenticated personal submissions endpoint...")
     submissions = session.get(SUBMISSIONS_URL, timeout=30)
     print("SUBMISSIONS STATUS:", submissions.status_code)

@@ -83,8 +83,14 @@ class HackerRankClient:
 
 def normalize_language(value: Any) -> tuple[str, str]:
     text = re.sub(r"\s+", " ", str(value or "").strip().lower())
-    for key, result in LANGUAGE_EXTENSIONS.items():
-        if text == key or key in text: return result
+    # Check exact names first so C++ is never classified as C merely because
+    # the C entry is a substring of "C++".
+    exact = LANGUAGE_EXTENSIONS.get(text)
+    if exact:
+        return exact
+    for key in sorted(LANGUAGE_EXTENSIONS, key=len, reverse=True):
+        if key in text:
+            return LANGUAGE_EXTENSIONS[key]
     if "kotlin" in text: return "Kotlin", ".kt"
     if "ruby" in text: return "Ruby", ".rb"
     if text == "go" or text.startswith("go "): return "Go", ".go"
@@ -103,6 +109,7 @@ def clean_text(value: Any) -> str | None:
     if value is None: return None
     if isinstance(value, str):
         text = BeautifulSoup(html.unescape(value), "html.parser").get_text("\n", strip=True)
+        text = re.sub(r"\s+([.,!?;:])", r"\1", text)
         return text or None
     return str(value)
 

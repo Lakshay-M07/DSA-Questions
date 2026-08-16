@@ -1,0 +1,45 @@
+name: Test HackerRank Community REST Access
+
+# Read-only probe. No credentials or account data are used.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe HackerRank public REST endpoints
+        run: |
+          set +e
+          python - <<'PY'
+          import json
+          import requests
+
+          urls = [
+              "https://www.hackerrank.com/rest/contests/master/submissions/?offset=0&limit=10",
+              "https://www.hackerrank.com/rest/contests/master/challenges/solve-me-first",
+              "https://www.hackerrank.com/rest/auth/login",
+          ]
+
+          headers = {
+              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36",
+              "Accept": "application/json,text/plain,*/*",
+          }
+
+          for url in urls:
+              print("\\n===", url, "===")
+              try:
+                  r = requests.get(url, headers=headers, timeout=20, allow_redirects=False)
+                  print("STATUS:", r.status_code)
+                  print("CONTENT-TYPE:", r.headers.get("content-type"))
+                  print("LOCATION:", r.headers.get("location"))
+                  print("SERVER:", r.headers.get("server"))
+                  print("VIA:", r.headers.get("via"))
+                  print("BODY:", r.text[:2000].replace("\\n", " "))
+              except Exception as exc:
+                  print("ERROR:", type(exc).__name__, str(exc))
+          PY

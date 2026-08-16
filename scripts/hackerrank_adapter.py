@@ -13,7 +13,7 @@ LOGIN_PAGE = f"{BASE_URL}/auth/login"
 REST_LOGIN = f"{BASE_URL}/rest/auth/login"
 SUBMISSIONS_URL = f"{BASE_URL}/rest/contests/master/submissions/"
 HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36", "Accept": "application/json,text/plain,*/*"}
-LANGUAGE_EXTENSIONS = {"c": ("C", ".c"), "c++": ("C++", ".cpp"), "cpp": ("C++", ".cpp"), "cxx": ("C++", ".cpp"), "python": ("Python", ".py"), "python3": ("Python", ".py"), "python 3": ("Python", ".py"), "java": ("Java", ".java"), "javascript": ("JavaScript", ".js"), "js": ("JavaScript", ".js")}
+LANGUAGE_EXTENSIONS = {"c": ("C", ".c"), "c++": ("C++", ".cpp"), "cpp": ("C++", ".cpp"), "cxx": ("C++", ".cpp"), "python": ("Python", ".py"), "python3": ("Python", ".py"), "python 3": ("Python", ".py"), "pypy": ("Python", ".py"), "pypy3": ("Python", ".py"), "java": ("Java", ".java"), "javascript": ("JavaScript", ".js"), "js": ("JavaScript", ".js")}
 DIFFICULTY_WORDS = {"easy": "Easy", "medium": "Medium", "hard": "Hard"}
 
 @dataclass(frozen=True)

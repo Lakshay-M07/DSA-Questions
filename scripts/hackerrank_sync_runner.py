@@ -118,9 +118,10 @@ def import_one(client: HackerRankClient, submission: HackerRankSubmission, state
 def main() -> None:
     email = os.environ.get("HACKERRANK_EMAIL")
     password = os.environ.get("HACKERRANK_PASSWORD")
-    if not email or not password:
-        raise SystemExit("HACKERRANK_EMAIL/HACKERRANK_PASSWORD secrets are required")
-    client = HackerRankClient(email, password)
+    session_id = os.environ.get("HACKERRANK_SESSION_ID")
+    if not session_id and (not email or not password):
+        raise SystemExit("HACKERRANK_SESSION_ID or HACKERRANK_EMAIL/HACKERRANK_PASSWORD secrets are required")
+    client = HackerRankClient(email, password, session_id=session_id)
     state = load_state()
     records = client.fetch_submissions(limit=1000)
     accepted = []

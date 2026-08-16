@@ -1,7 +1,6 @@
 name: Test HackerRank Authentication
 
-# Read-only authentication and submission-page access check for HackerRank Community.
-
+# Read-only authentication and submission access check for HackerRank Community.
 on:
   workflow_dispatch:
 
@@ -25,24 +24,15 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
 
-      - name: Check HackerRank credentials are configured
+      - name: Check HackerRank session secret is configured
         env:
-          HACKERRANK_EMAIL: ${{ secrets.HACKERRANK_EMAIL }}
-          HACKERRANK_PASSWORD: ${{ secrets.HACKERRANK_PASSWORD }}
+          HACKERRANK_SESSION_ID: ${{ secrets.HACKERRANK_SESSION_ID }}
         run: |
-          test -n "$HACKERRANK_EMAIL" || { echo "HACKERRANK_EMAIL secret is missing."; exit 1; }
-          test -n "$HACKERRANK_PASSWORD" || { echo "HACKERRANK_PASSWORD secret is missing."; exit 1; }
+          test -n "$HACKERRANK_SESSION_ID" || { echo "HACKERRANK_SESSION_ID secret is missing."; exit 1; }
 
       - name: Run read-only HackerRank access test
         env:
+          HACKERRANK_SESSION_ID: ${{ secrets.HACKERRANK_SESSION_ID }}
           HACKERRANK_EMAIL: ${{ secrets.HACKERRANK_EMAIL }}
           HACKERRANK_PASSWORD: ${{ secrets.HACKERRANK_PASSWORD }}
-        run: python scripts/test_hackerrank_auth.py
-
-      - name: Upload HackerRank login diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: hackerrank-login-diagnostics
-          path: hackerrank-login-diagnostics/
-          if-no-files-found: ignore
+        run: python scripts/test_hackerrank_rest_auth.py

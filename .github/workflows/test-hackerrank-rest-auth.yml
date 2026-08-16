@@ -28,4 +28,4 @@ jobs:
           HACKERRANK_SESSION_ID: ${{ secrets.HACKERRANK_SESSION_ID }}
           HACKERRANK_EMAIL: ${{ secrets.HACKERRANK_EMAIL }}
           HACKERRANK_PASSWORD: ${{ secrets.HACKERRANK_PASSWORD }}
-        run: python scripts/test_hackerrank_rest_auth.py
+        run: python -m scripts.test_hackerrank_rest_auth

@@ -53,8 +53,7 @@ class HackerRankClient:
         headers = {"Referer": LOGIN_PAGE}
         if csrf: headers["x-csrf-token"] = csrf
         response = self.session.post(REST_LOGIN, data={"login": self.email, "password": self.password, "remember_me": "false", "fallback": "true"}, headers=headers, timeout=30, allow_redirects=False)
-        if response.status_code not in (200, 201, 202):
-            raise RuntimeError(f"HackerRank authentication failed: HTTP {response.status_code}")
+        if response.status_code not in (200, 201, 202): raise RuntimeError(f"HackerRank authentication failed: HTTP {response.status_code}")
         try: payload = response.json()
         except ValueError as exc: raise RuntimeError("HackerRank authentication did not return JSON") from exc
         if payload.get("csrf_token"): self.session.headers["x-csrf-token"] = payload["csrf_token"]
@@ -107,6 +106,10 @@ def clean_text(value: Any) -> str | None:
         return text or None
     return str(value)
 
+def _model(data: dict[str, Any]) -> dict[str, Any]:
+    value = data.get("model")
+    return value if isinstance(value, dict) else data
+
 def extract_source(data: Any) -> str | None:
     preferred = {"code", "source", "source_code", "solution", "code_content"}
     def walk(value: Any) -> str | None:
@@ -125,6 +128,7 @@ def extract_source(data: Any) -> str | None:
     return walk(data)
 
 def extract_problem_metadata(data: dict[str, Any]) -> tuple[str | None, str | None, str | None, tuple[str, ...], str | None]:
+    data = _model(data)
     title = first_value(data, "name", "title", "challenge_name")
     difficulty = first_value(data, "difficulty_name", "difficulty", "difficultyName")
     category = first_value(data, "category", "track", "domain")
@@ -132,7 +136,7 @@ def extract_problem_metadata(data: dict[str, Any]) -> tuple[str | None, str | No
     description = first_value(data, "description", "problem_statement", "body", "content")
     if isinstance(difficulty, dict): difficulty = first_value(difficulty, "name", "label", "value", "level")
     if difficulty: difficulty = DIFFICULTY_WORDS.get(str(difficulty).strip().lower(), str(difficulty))
-    if isinstance(category, dict): category = first_value(category, "name", "label", "slug")
+    if isinstance(category, dict): category = first_value(category, "track_name", "name", "label", "slug")
     if isinstance(tags, str): tags = [x.strip() for x in re.split(r"[,|]", tags) if x.strip()]
     elif not isinstance(tags, list): tags = []
     tags = tuple(str(x.get("name", x) if isinstance(x, dict) else x) for x in tags)
@@ -140,13 +144,14 @@ def extract_problem_metadata(data: dict[str, Any]) -> tuple[str | None, str | No
 
 def parse_submission(record: dict[str, Any]) -> HackerRankSubmission | None:
     if str(record.get("status", "")).strip().lower() != "accepted": return None
+    challenge = record.get("challenge") if isinstance(record.get("challenge"), dict) else {}
     submission_id = first_value(record, "id", "submission_id", "submissionId")
-    slug = first_value(record, "challenge_slug", "slug", "challengeSlug", "slug_name")
-    title = first_value(record, "challenge_name", "name", "title", "challengeName")
+    slug = first_value(record, "challenge_slug", "slug", "challengeSlug", "slug_name") or first_value(challenge, "slug", "challenge_slug")
+    title = first_value(record, "challenge_name", "name", "title", "challengeName") or first_value(challenge, "name", "title")
     language_raw = first_value(record, "language", "language_name", "languageName")
     if submission_id is None or slug is None: return None
     language, extension = normalize_language(language_raw)
     submitted_at = first_value(record, "created_at", "createdAt", "submitted_at", "submittedAt", "time")
     if isinstance(submitted_at, (int, float)): submitted_at = datetime.fromtimestamp(submitted_at, tz=timezone.utc).isoformat()
-    problem_id = first_value(record, "challenge_id", "challengeId", "problem_id", "problemId") or slug
+    problem_id = first_value(record, "challenge_id", "challengeId", "problem_id", "problemId") or first_value(challenge, "id", "challenge_id") or slug
     return HackerRankSubmission(submission_id=str(submission_id), problem_id=str(problem_id), slug=str(slug), title=str(title or slug.replace("-", " ").title()), language=language, extension=extension, status="Accepted", submitted_at=str(submitted_at) if submitted_at else None)

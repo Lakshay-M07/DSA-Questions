@@ -2,7 +2,6 @@ name: Sync Accepted DSA Submissions
 
 on:
   schedule:
-    # Run every 20 minutes, offset from the top of the hour to reduce queue contention.
     - cron: '7,27,47 * * * *'
   workflow_dispatch:
 
@@ -57,22 +56,32 @@ jobs:
           test -n "$CODECHEF_PASSWORD" || { echo "CODECHEF_PASSWORD secret is missing."; exit 1; }
           python - <<'PY'
           from scripts.codechef_adapter import fetch_recent_accepted
-
           items = fetch_recent_accepted(20)
           print(f"CodeChef recent accepted submissions returned: {len(items)}")
           for item in items:
               print(f"CodeChef submission: {item.problem_id} / {item.language} / {item.submission_id}")
           PY
 
-      - name: Sync accepted submissions
+      - name: Test HackerRank authentication and submissions (read-only)
+        env:
+          HACKERRANK_EMAIL: ${{ secrets.HACKERRANK_EMAIL }}
+          HACKERRANK_PASSWORD: ${{ secrets.HACKERRANK_PASSWORD }}
+        run: python scripts/test_hackerrank_rest_auth.py
+
+      - name: Sync LeetCode and CodeChef accepted submissions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
           LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
           CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
           CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
-          HACKERRANK_SESSION: ${{ secrets.HACKERRANK_SESSION }}
         run: python -m scripts.leetcode_sync_runner
+
+      - name: Sync HackerRank accepted submissions
+        env:
+          HACKERRANK_EMAIL: ${{ secrets.HACKERRANK_EMAIL }}
+          HACKERRANK_PASSWORD: ${{ secrets.HACKERRANK_PASSWORD }}
+        run: python -m scripts.hackerrank_sync_runner
 
       - name: Verify repository state
         run: git status --short

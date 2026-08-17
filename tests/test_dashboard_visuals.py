@@ -8,7 +8,7 @@ def test_dashboard_visual_hierarchy():
     assert "<details" not in dashboard
     assert "LeetCode · 1 solved" not in dashboard
     assert "**1** solved" in dashboard
-    assert "Easy 1 · Medium 0 · Hard 0" in dashboard
+    assert "**Easy** 1 · **Medium** 0 · **Hard** 0" in dashboard
     assert "| Platform | Problem | Language | Difficulty | Topic |" in dashboard
 
 

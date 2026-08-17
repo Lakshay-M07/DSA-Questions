@@ -2,59 +2,30 @@
 <div align="center">
 <h1>📊 DSA Progress Dashboard</h1>
 <p><strong>LeetCode · CodeChef · HackerRank</strong></p>
-<p style="opacity:.75;">Accepted solutions, tracked automatically from this repository.</p>
+<p style="opacity:.68;">Accepted solutions tracked automatically from this repository.</p>
+<div style="margin-top:24px;display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
+<div style="text-align:center;min-width:110px;padding:4px 10px;"><div style="font-size:13px;opacity:.68;">Problems</div><div style="font-size:26px;font-weight:700;margin-top:3px;">3</div></div>
+<div style="text-align:center;min-width:110px;padding:4px 10px;"><div style="font-size:13px;opacity:.68;">Easy</div><div style="font-size:26px;font-weight:700;margin-top:3px;">3</div></div>
+<div style="text-align:center;min-width:110px;padding:4px 10px;"><div style="font-size:13px;opacity:.68;">Medium</div><div style="font-size:26px;font-weight:700;margin-top:3px;">0</div></div>
+<div style="text-align:center;min-width:110px;padding:4px 10px;"><div style="font-size:13px;opacity:.68;">Hard</div><div style="font-size:26px;font-weight:700;margin-top:3px;">0</div></div>
+<div style="text-align:center;min-width:110px;padding:4px 10px;"><div style="font-size:13px;opacity:.68;">Current streak</div><div style="font-size:26px;font-weight:700;margin-top:3px;">2</div></div>
+<div style="text-align:center;min-width:110px;padding:4px 10px;"><div style="font-size:13px;opacity:.68;">Best streak</div><div style="font-size:26px;font-weight:700;margin-top:3px;">2</div></div>
+</div>
 </div>
 
+<div style="margin-top:28px;">
+<h2>Platforms</h2>
 <table style="width:100%;border:0;background:transparent;"><tr>
-<td style="width:25%;padding:14px;text-align:center;border:0;background:transparent;"><div style="font-size:13px;opacity:.7;">Problems Solved</div><div style="font-size:28px;font-weight:700;line-height:1.15;margin-top:3px;">3</div></td>
-<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;"><div style="font-size:13px;opacity:.7;">Easy</div><div style="font-size:28px;font-weight:700;line-height:1.15;margin-top:3px;">3</div></td>
-<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;"><div style="font-size:13px;opacity:.7;">Medium</div><div style="font-size:28px;font-weight:700;line-height:1.15;margin-top:3px;">0</div></td>
-<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;"><div style="font-size:13px;opacity:.7;">Hard</div><div style="font-size:28px;font-weight:700;line-height:1.15;margin-top:3px;">0</div></td>
-<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;"><div style="font-size:13px;opacity:.7;">Current Streak</div><div style="font-size:28px;font-weight:700;line-height:1.15;margin-top:3px;">2</div></td>
-<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;"><div style="font-size:13px;opacity:.7;">Best Streak</div><div style="font-size:28px;font-weight:700;line-height:1.15;margin-top:3px;">2</div></td>
+<td style="width:33.33%;vertical-align:top;padding:8px;border:0;background:transparent;"><div style="background:rgba(255,255,255,.02);border-radius:16px;padding:22px 20px;box-shadow:inset 0 0 0 1px rgba(139,148,158,.28);"><div style="height:4px;background:#f0b90b;margin:-22px -20px 18px;border-radius:16px 16px 0 0;"></div><div style="font-size:21px;font-weight:700;">LeetCode</div><div style="margin-top:4px;font-size:13px;opacity:.65;">1 accepted problem</div><div style="margin-top:16px;font-size:15px;">Easy 1 · Medium 0 · Hard 0</div><div style="margin-top:16px;font-size:13px;line-height:1.8;"><strong>Languages</strong><br>C++ <strong>1</strong></div><div style="margin-top:8px;font-size:13px;line-height:1.8;"><strong>Topics</strong><br>Array <strong>1</strong></div></div></td>
+<td style="width:33.33%;vertical-align:top;padding:8px;border:0;background:transparent;"><div style="background:rgba(255,255,255,.02);border-radius:16px;padding:22px 20px;box-shadow:inset 0 0 0 1px rgba(139,148,158,.28);"><div style="height:4px;background:#a855f7;margin:-22px -20px 18px;border-radius:16px 16px 0 0;"></div><div style="font-size:21px;font-weight:700;">CodeChef</div><div style="margin-top:4px;font-size:13px;opacity:.65;">1 accepted problem</div><div style="margin-top:16px;font-size:15px;">Easy 1 · Medium 0 · Hard 0</div><div style="margin-top:16px;font-size:13px;line-height:1.8;"><strong>Languages</strong><br>C++ <strong>1</strong></div><div style="margin-top:8px;font-size:13px;line-height:1.8;"><strong>Topics</strong><br>Array <strong>1</strong></div></div></td>
+<td style="width:33.33%;vertical-align:top;padding:8px;border:0;background:transparent;"><div style="background:rgba(255,255,255,.02);border-radius:16px;padding:22px 20px;box-shadow:inset 0 0 0 1px rgba(139,148,158,.28);"><div style="height:4px;background:#16c60c;margin:-22px -20px 18px;border-radius:16px 16px 0 0;"></div><div style="font-size:21px;font-weight:700;">HackerRank</div><div style="margin-top:4px;font-size:13px;opacity:.65;">1 accepted problem</div><div style="margin-top:16px;font-size:15px;">Easy 1 · Medium 0 · Hard 0</div><div style="margin-top:16px;font-size:13px;line-height:1.8;"><strong>Languages</strong><br>Python <strong>1</strong></div><div style="margin-top:8px;font-size:13px;line-height:1.8;"><strong>Topics</strong><br>Ai <strong>1</strong></div></div></td>
 </tr></table>
-
-## Platforms
-
-<table style="width:100%;border:0;background:transparent;"><tr>
-<td style="width:33.33%;vertical-align:top;padding:8px;border:0;background:transparent;">
-<div style="border:1px solid #30363d;border-radius:14px;padding:20px;background:rgba(255,255,255,.018);">
-<div style="height:4px;background:#f0b90b;margin:-20px -20px 18px;border-radius:14px 14px 0 0;"></div>
-<div style="font-size:20px;font-weight:700;">LeetCode</div>
-<div style="margin-top:6px;font-size:13px;opacity:.68;">1 accepted problem</div>
-<div style="margin-top:14px;"><div style="height:6px;border-radius:999px;overflow:hidden;background:#30363d;"><span style="display:inline-block;width:100%;height:6px;background:#16c60c;"></span></div></div>
-<table style="width:100%;margin-top:7px;border:0;background:transparent;"><tr><td style="padding:7px 4px;text-align:left;border:0;background:transparent;"><strong style="color:#16c60c;">1</strong><br><small>Easy</small></td><td style="padding:7px 4px;text-align:center;border:0;background:transparent;"><strong style="color:#f0b90b;">0</strong><br><small>Medium</small></td><td style="padding:7px 4px;text-align:right;border:0;background:transparent;"><strong style="color:#ef4444;">0</strong><br><small>Hard</small></td></tr></table>
-<div style="margin-top:12px;font-size:13px;line-height:1.8;"><strong>Languages</strong><br>C++ <strong>1</strong></div>
-<div style="margin-top:6px;font-size:13px;line-height:1.8;"><strong>Topics</strong><br>Array <strong>1</strong></div>
 </div>
-</td>
-<td style="width:33.33%;vertical-align:top;padding:8px;border:0;background:transparent;">
-<div style="border:1px solid #30363d;border-radius:14px;padding:20px;background:rgba(255,255,255,.018);">
-<div style="height:4px;background:#a855f7;margin:-20px -20px 18px;border-radius:14px 14px 0 0;"></div>
-<div style="font-size:20px;font-weight:700;">CodeChef</div>
-<div style="margin-top:6px;font-size:13px;opacity:.68;">1 accepted problem</div>
-<div style="margin-top:14px;"><div style="height:6px;border-radius:999px;overflow:hidden;background:#30363d;"><span style="display:inline-block;width:100%;height:6px;background:#16c60c;"></span></div></div>
-<table style="width:100%;margin-top:7px;border:0;background:transparent;"><tr><td style="padding:7px 4px;text-align:left;border:0;background:transparent;"><strong style="color:#16c60c;">1</strong><br><small>Easy</small></td><td style="padding:7px 4px;text-align:center;border:0;background:transparent;"><strong style="color:#f0b90b;">0</strong><br><small>Medium</small></td><td style="padding:7px 4px;text-align:right;border:0;background:transparent;"><strong style="color:#ef4444;">0</strong><br><small>Hard</small></td></tr></table>
-<div style="margin-top:12px;font-size:13px;line-height:1.8;"><strong>Languages</strong><br>C++ <strong>1</strong></div>
-<div style="margin-top:6px;font-size:13px;line-height:1.8;"><strong>Topics</strong><br>Array <strong>1</strong></div>
-</div>
-</td>
-<td style="width:33.33%;vertical-align:top;padding:8px;border:0;background:transparent;">
-<div style="border:1px solid #30363d;border-radius:14px;padding:20px;background:rgba(255,255,255,.018);">
-<div style="height:4px;background:#16c60c;margin:-20px -20px 18px;border-radius:14px 14px 0 0;"></div>
-<div style="font-size:20px;font-weight:700;">HackerRank</div>
-<div style="margin-top:6px;font-size:13px;opacity:.68;">1 accepted problem</div>
-<div style="margin-top:14px;"><div style="height:6px;border-radius:999px;overflow:hidden;background:#30363d;"><span style="display:inline-block;width:100%;height:6px;background:#16c60c;"></span></div></div>
-<table style="width:100%;margin-top:7px;border:0;background:transparent;"><tr><td style="padding:7px 4px;text-align:left;border:0;background:transparent;"><strong style="color:#16c60c;">1</strong><br><small>Easy</small></td><td style="padding:7px 4px;text-align:center;border:0;background:transparent;"><strong style="color:#f0b90b;">0</strong><br><small>Medium</small></td><td style="padding:7px 4px;text-align:right;border:0;background:transparent;"><strong style="color:#ef4444;">0</strong><br><small>Hard</small></td></tr></table>
-<div style="margin-top:12px;font-size:13px;line-height:1.8;"><strong>Languages</strong><br>Python <strong>1</strong></div>
-<div style="margin-top:6px;font-size:13px;line-height:1.8;"><strong>Topics</strong><br>Ai <strong>1</strong></div>
-</div>
-</td>
-</tr></table>
 
-## Recent Accepted Submissions
-
+<div style="margin-top:20px;">
+<h2>Recent Accepted Submissions</h2>
 <table style="width:100%;"><thead><tr><th align="left">Platform</th><th align="left">Problem</th><th align="left">Language</th><th align="left">Difficulty</th><th align="left">Topic</th></tr></thead><tbody><tr><td><strong>HackerRank</strong></td><td>Say "Hello, World!" With Python</td><td>Python</td><td>Easy</td><td>Ai</td></tr><tr><td><strong>LeetCode</strong></td><td>Two Sum</td><td>C++</td><td>Easy</td><td>Array</td></tr><tr><td><strong>CodeChef</strong></td><td>Sum of Array elements</td><td>C++</td><td>Easy</td><td>Array</td></tr></tbody></table>
+</div>
 
 <!-- DASHBOARD:END -->
 

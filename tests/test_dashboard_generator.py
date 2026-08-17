@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from scripts.dashboard_generator import (
     END_MARKER,
     START_MARKER,
+    _recent_records,
     discover_platform_records,
     platform_stats,
     render_dashboard,
@@ -42,6 +43,16 @@ def test_streak_is_zero_when_latest_activity_is_older_than_yesterday():
     current, best = streak_stats(records, datetime(2026, 8, 16, tzinfo=timezone.utc))
     assert current == 0
     assert best == 1
+
+
+def test_recent_records_keep_undated_platform_data():
+    records = _recent_records(
+        {
+            "LeetCode": [{"problem_id": "1", "language": "C++", "accepted_at": "2026-08-16T10:00:00+00:00"}],
+            "CodeChef": [{"problem_id": "2", "language": "C++", "accepted_at": "45 min ago"}],
+        }
+    )
+    assert [record["problem_id"] for record in records] == ["1", "2"]
 
 
 def test_hackerrank_committed_metadata_is_discovered():

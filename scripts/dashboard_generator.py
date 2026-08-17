@@ -173,10 +173,9 @@ def _platform_card(platform: str, stats: dict[str, Any]) -> str:
 def _recent_records(platform_records: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
     rows = [{**record, "platform": platform} for platform, records in platform_records.items() for record in _unique_records(records)]
     dated = [row for row in rows if _parse_timestamp(row.get("accepted_at"))]
-    if dated:
-        dated.sort(key=lambda row: _parse_timestamp(row.get("accepted_at")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
-        return dated
-    return rows
+    undated = [row for row in rows if not _parse_timestamp(row.get("accepted_at"))]
+    dated.sort(key=lambda row: _parse_timestamp(row.get("accepted_at")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    return dated + undated
 
 
 def render_dashboard() -> str:

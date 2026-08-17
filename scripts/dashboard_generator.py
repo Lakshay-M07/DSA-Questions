@@ -152,26 +152,20 @@ def _format_counter(counter: Counter[str]) -> str:
     return " · ".join(f"{html.escape(key)} <strong>{value}</strong>" for key, value in counter.most_common())
 
 
-def _metric_card(value: int | str, label: str) -> str:
-    return (
-        '<td style="padding:18px 24px;text-align:center;min-width:120px;">'
-        f'<div style="font-size:28px;font-weight:700;line-height:1.1;">{value}</div>'
-        f'<div style="font-size:13px;opacity:.72;margin-top:6px;">{label}</div>'
-        "</td>"
-    )
+def _metric_line(label: str, value: int | str) -> str:
+    return f'<div style="font-size:13px;opacity:.7;">{label}</div><div style="font-size:28px;font-weight:700;line-height:1.15;margin-top:3px;">{value}</div>'
 
 
 def _difficulty_bar(difficulty: Counter[str], total: int) -> str:
+    if not total:
+        return '<div style="height:6px;border-radius:999px;background:#30363d;"></div>'
     segments: list[str] = []
-    if total:
-        for level, accent in (("Easy", "#16c60c"), ("Medium", "#f0b90b"), ("Hard", "#ef4444")):
-            count = difficulty.get(level, 0)
-            if count:
-                width = max(4, round(count / total * 100))
-                segments.append(f'<span style="display:inline-block;width:{width}%;height:6px;background:{accent};"></span>')
-    if not segments:
-        segments.append('<span style="display:inline-block;width:100%;height:6px;background:#30363d;"></span>')
-    return "".join(segments)
+    for level, accent in (("Easy", "#16c60c"), ("Medium", "#f0b90b"), ("Hard", "#ef4444")):
+        count = difficulty.get(level, 0)
+        if count:
+            width = max(4, round(count / total * 100))
+            segments.append(f'<span style="display:inline-block;width:{width}%;height:6px;background:{accent};"></span>')
+    return f'<div style="height:6px;border-radius:999px;overflow:hidden;background:#30363d;">{"".join(segments)}</div>'
 
 
 def _platform_card(platform: str, stats: dict[str, Any]) -> str:
@@ -183,19 +177,19 @@ def _platform_card(platform: str, stats: dict[str, Any]) -> str:
     hard = difficulty.get("Hard", 0)
     return "\n".join(
         [
-            f'<td style="width:33.33%;vertical-align:top;padding:8px;">',
-            f'<div style="border:1px solid #30363d;border-radius:14px;padding:22px 20px;background:rgba(255,255,255,.02);">',
-            f'<div style="border-top:4px solid {accent};margin:-22px -20px 18px;border-radius:14px 14px 0 0;"></div>',
+            '<td style="width:33.33%;vertical-align:top;padding:8px;border:0;">',
+            f'<div style="border:1px solid #30363d;border-radius:14px;padding:20px;background:rgba(255,255,255,.018);">',
+            f'<div style="height:4px;background:{accent};margin:-20px -20px 18px;border-radius:14px 14px 0 0;"></div>',
             f'<div style="font-size:20px;font-weight:700;">{platform}</div>',
-            f'<div style="margin-top:8px;font-size:14px;opacity:.72;">{solved} accepted problem{\"s\" if solved != 1 else \"\"}</div>',
-            f'<div style="margin-top:16px;">{_difficulty_bar(difficulty, solved)}</div>',
-            '<table style="width:100%;margin-top:8px;"><tr>',
-            f'<td style="padding:7px 4px;text-align:left;"><strong style="color:#16c60c;">{easy}</strong><br><small>Easy</small></td>',
-            f'<td style="padding:7px 4px;text-align:center;"><strong style="color:#f0b90b;">{medium}</strong><br><small>Medium</small></td>',
-            f'<td style="padding:7px 4px;text-align:right;"><strong style="color:#ef4444;">{hard}</strong><br><small>Hard</small></td>',
+            f'<div style="margin-top:6px;font-size:13px;opacity:.68;">{solved} accepted problem{\"s\" if solved != 1 else \"\"}</div>',
+            f'<div style="margin-top:14px;">{_difficulty_bar(difficulty, solved)}</div>',
+            '<table style="width:100%;margin-top:7px;border:0;background:transparent;"><tr>',
+            f'<td style="padding:7px 4px;text-align:left;border:0;background:transparent;"><strong style="color:#16c60c;">{easy}</strong><br><small>Easy</small></td>',
+            f'<td style="padding:7px 4px;text-align:center;border:0;background:transparent;"><strong style="color:#f0b90b;">{medium}</strong><br><small>Medium</small></td>',
+            f'<td style="padding:7px 4px;text-align:right;border:0;background:transparent;"><strong style="color:#ef4444;">{hard}</strong><br><small>Hard</small></td>',
             '</tr></table>',
-            f'<div style="margin-top:14px;font-size:13px;line-height:1.8;"><strong>Languages</strong><br>{_format_counter(stats["languages"])}</div>',
-            f'<div style="margin-top:8px;font-size:13px;line-height:1.8;"><strong>Topics</strong><br>{_format_counter(stats["categories"])}</div>',
+            f'<div style="margin-top:12px;font-size:13px;line-height:1.8;"><strong>Languages</strong><br>{_format_counter(stats["languages"])}</div>',
+            f'<div style="margin-top:6px;font-size:13px;line-height:1.8;"><strong>Topics</strong><br>{_format_counter(stats["categories"])}</div>',
             '</div>',
             '</td>',
         ]
@@ -252,19 +246,19 @@ def render_dashboard() -> str:
             '<p><strong>LeetCode · CodeChef · HackerRank</strong></p>',
             '<p style="opacity:.75;">Accepted solutions, tracked automatically from this repository.</p>',
             '',
-            '<table style="width:100%;border:0;"><tr>',
-            _metric_card(total, "Problems Solved"),
-            _metric_card(all_difficulty.get("Easy", 0), "Easy"),
-            _metric_card(all_difficulty.get("Medium", 0), "Medium"),
-            _metric_card(all_difficulty.get("Hard", 0), "Hard"),
-            _metric_card(current_text, "Current Streak"),
-            _metric_card(best_text, "Best Streak"),
+            '<table style="width:100%;border:0;background:transparent;"><tr>',
+            f'<td style="width:25%;padding:14px;text-align:center;border:0;background:transparent;">{_metric_line("Problems Solved", total)}</td>',
+            f'<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;">{_metric_line("Easy", all_difficulty.get("Easy", 0))}</td>',
+            f'<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;">{_metric_line("Medium", all_difficulty.get("Medium", 0))}</td>',
+            f'<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;">{_metric_line("Hard", all_difficulty.get("Hard", 0))}</td>',
+            f'<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;">{_metric_line("Current Streak", current_text)}</td>',
+            f'<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;">{_metric_line("Best Streak", best_text)}</td>',
             '</tr></table>',
             '</div>',
             '',
             '## Platforms',
             '',
-            '<table style="width:100%;border:0;"><tr>',
+            '<table style="width:100%;border:0;background:transparent;"><tr>',
             *(_platform_card(platform, stats[platform]) for platform in PLATFORMS),
             '</tr></table>',
             '',

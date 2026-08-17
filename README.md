@@ -9,45 +9,38 @@
 
 🔥 **Current streak:** 2 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
 
-### Platforms
+## Platforms
 
 ### 🟨 LeetCode
 
-**1** solved
-
-**Easy** 1 · **Medium** 0 · **Hard** 0
-
-**Languages:** C++: **1**
-
-**Categories:** Array: **1**
+**1** solved  
+**Easy** 1 · **Medium** 0 · **Hard** 0  
+**Languages:** C++: **1**  
+**Topics:** Array: **1**
 
 ---
 
 ### 🟪 CodeChef
 
-**1** solved
-
-**Easy** 1 · **Medium** 0 · **Hard** 0
-
-**Languages:** C++: **1**
-
-**Categories:** Array: **1**
+**1** solved  
+**Easy** 1 · **Medium** 0 · **Hard** 0  
+**Languages:** C++: **1**  
+**Topics:** Array: **1**
 
 ---
 
 ### 🟩 HackerRank
 
-**1** solved
+**1** solved  
+**Easy** 1 · **Medium** 0 · **Hard** 0  
+**Languages:** Python: **1**  
+**Topics:** Ai: **1**
 
-**Easy** 1 · **Medium** 0 · **Hard** 0
+---
 
-**Languages:** Python: **1**
+## Recent Accepted Submissions
 
-**Categories:** Ai: **1**
-
-### Recent Accepted Submissions
-
-| Platform | Problem | Language | Difficulty | Category |
+| Platform | Problem | Language | Difficulty | Topic |
 |---|---|---|---|---|
 | HackerRank | Say "Hello, World!" With Python | Python | Easy | Ai |
 | LeetCode | Two Sum | C++ | Easy | Array |

@@ -4,38 +4,16 @@
 <p><strong>LeetCode · CodeChef · HackerRank</strong></p>
 <p>Accepted solutions, tracked automatically from this repository.</p>
 
-<table><tr><td align="center"><strong>3</strong><br>Problems Solved</td><td align="center"><strong>3</strong><br>Easy</td><td align="center"><strong>0</strong><br>Medium</td><td align="center"><strong>0</strong><br>Hard</td><td align="center"><strong>2</strong><br>Current Streak</td><td align="center"><strong>2</strong><br>Best Streak</td></tr></table>
+<table style="width:100%;"><tr><td align="center" style="padding:18px 24px;min-width:120px;"><div style="font-size:28px;font-weight:700;line-height:1.1;">3</div><div style="font-size:13px;opacity:.72;margin-top:6px;">Problems Solved</div></td><td align="center" style="padding:18px 24px;min-width:120px;"><div style="font-size:28px;font-weight:700;line-height:1.1;">3</div><div style="font-size:13px;opacity:.72;margin-top:6px;">Easy</div></td><td align="center" style="padding:18px 24px;min-width:120px;"><div style="font-size:28px;font-weight:700;line-height:1.1;">0</div><div style="font-size:13px;opacity:.72;margin-top:6px;">Medium</div></td><td align="center" style="padding:18px 24px;min-width:120px;"><div style="font-size:28px;font-weight:700;line-height:1.1;">0</div><div style="font-size:13px;opacity:.72;margin-top:6px;">Hard</div></td><td align="center" style="padding:18px 24px;min-width:120px;"><div style="font-size:28px;font-weight:700;line-height:1.1;">2</div><div style="font-size:13px;opacity:.72;margin-top:6px;">Current Streak</div></td><td align="center" style="padding:18px 24px;min-width:120px;"><div style="font-size:28px;font-weight:700;line-height:1.1;">2</div><div style="font-size:13px;opacity:.72;margin-top:6px;">Best Streak</div></td></tr></table>
 </div>
 
 ## Platforms
 
-<details open>
-<summary><strong>🟨 LeetCode · 1 solved</strong></summary>
-
-**1** solved · **Easy** 1 · **Medium** 0 · **Hard** 0  
-**Languages:** C++: **1** · **Categories:** Array: **1**
-
-</details>
-
-<details open>
-<summary><strong>🟪 CodeChef · 1 solved</strong></summary>
-
-**1** solved · **Easy** 1 · **Medium** 0 · **Hard** 0  
-**Languages:** C++: **1** · **Categories:** Array: **1**
-
-</details>
-
-<details open>
-<summary><strong>🟩 HackerRank · 1 solved</strong></summary>
-
-**1** solved · **Easy** 1 · **Medium** 0 · **Hard** 0  
-**Languages:** Python: **1** · **Categories:** Ai: **1**
-
-</details>
+<table style="width:100%;"><tr><td style="width:33.33%;vertical-align:top;padding:8px;"><div style="border:1px solid #30363d;border-top:4px solid #f0b90b;border-radius:12px;padding:22px 20px;"><div style="font-size:20px;font-weight:700;">LeetCode</div><div style="margin-top:14px;font-size:14px;opacity:.8;">1 accepted problem</div><table style="margin-top:14px;width:100%;"><tr><td style="padding:8px 4px;text-align:center;"><strong>1</strong><br><small>Easy</small></td><td style="padding:8px 4px;text-align:center;"><strong>0</strong><br><small>Medium</small></td><td style="padding:8px 4px;text-align:center;"><strong>0</strong><br><small>Hard</small></td></tr></table><div style="margin-top:12px;font-size:13px;line-height:1.7;"><strong>Languages</strong><br>C++ <strong>1</strong></div><div style="margin-top:10px;font-size:13px;line-height:1.7;"><strong>Topics</strong><br>Array <strong>1</strong></div></div></td><td style="width:33.33%;vertical-align:top;padding:8px;"><div style="border:1px solid #30363d;border-top:4px solid #a855f7;border-radius:12px;padding:22px 20px;"><div style="font-size:20px;font-weight:700;">CodeChef</div><div style="margin-top:14px;font-size:14px;opacity:.8;">1 accepted problem</div><table style="margin-top:14px;width:100%;"><tr><td style="padding:8px 4px;text-align:center;"><strong>1</strong><br><small>Easy</small></td><td style="padding:8px 4px;text-align:center;"><strong>0</strong><br><small>Medium</small></td><td style="padding:8px 4px;text-align:center;"><strong>0</strong><br><small>Hard</small></td></tr></table><div style="margin-top:12px;font-size:13px;line-height:1.7;"><strong>Languages</strong><br>C++ <strong>1</strong></div><div style="margin-top:10px;font-size:13px;line-height:1.7;"><strong>Topics</strong><br>Array <strong>1</strong></div></div></td><td style="width:33.33%;vertical-align:top;padding:8px;"><div style="border:1px solid #30363d;border-top:4px solid #16c60c;border-radius:12px;padding:22px 20px;"><div style="font-size:20px;font-weight:700;">HackerRank</div><div style="margin-top:14px;font-size:14px;opacity:.8;">1 accepted problem</div><table style="margin-top:14px;width:100%;"><tr><td style="padding:8px 4px;text-align:center;"><strong>1</strong><br><small>Easy</small></td><td style="padding:8px 4px;text-align:center;"><strong>0</strong><br><small>Medium</small></td><td style="padding:8px 4px;text-align:center;"><strong>0</strong><br><small>Hard</small></td></tr></table><div style="margin-top:12px;font-size:13px;line-height:1.7;"><strong>Languages</strong><br>Python <strong>1</strong></div><div style="margin-top:10px;font-size:13px;line-height:1.7;"><strong>Topics</strong><br>Ai <strong>1</strong></div></div></td></tr></table>
 
 ## Recent Accepted Submissions
 
-<table><thead><tr><th>Platform</th><th>Problem</th><th>Language</th><th>Difficulty</th><th>Category</th></tr></thead><tbody><tr><td><strong>HackerRank</strong></td><td>Say "Hello, World!" With Python</td><td>Python</td><td>Easy</td><td>Ai</td></tr><tr><td><strong>LeetCode</strong></td><td>Two Sum</td><td>C++</td><td>Easy</td><td>Array</td></tr><tr><td><strong>CodeChef</strong></td><td>Sum of Array elements</td><td>C++</td><td>Easy</td><td>Array</td></tr></tbody></table>
+<table style="width:100%;"><thead><tr><th align="left">Platform</th><th align="left">Problem</th><th align="left">Language</th><th align="left">Difficulty</th><th align="left">Topic</th></tr></thead><tbody><tr><td><strong>HackerRank</strong></td><td>Say "Hello, World!" With Python</td><td>Python</td><td>Easy</td><td>Ai</td></tr><tr><td><strong>LeetCode</strong></td><td>Two Sum</td><td>C++</td><td>Easy</td><td>Array</td></tr><tr><td><strong>CodeChef</strong></td><td>Sum of Array elements</td><td>C++</td><td>Easy</td><td>Array</td></tr></tbody></table>
 
 <!-- DASHBOARD:END -->
 
@@ -43,7 +21,7 @@
 
 A GitHub-native archive for accepted Data Structures & Algorithms submissions from **LeetCode, CodeChef, and HackerRank**.
 
-The repository is intentionally automated: GitHub Actions periodically checks the configured platforms, imports eligible accepted submissions, stores the source in a consistent structure, and refreshes the dashboard above.
+The repository is intentionally automated: GitHub Actions periodically checks the configured platforms, imports eligible accepted submissions, stores the source in a consistent structure, and refreshes the dashboard below.
 
 ## 🚀 How to use this repository
 

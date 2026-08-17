@@ -88,5 +88,6 @@ Use the repository tree to study problems by **platform, language, topic, or dif
 |---|---|---|---|---|
 | HackerRank | Say "Hello, World!" With Python | Python | Easy | Ai |
 | LeetCode | Two Sum | C++ | Easy | Array |
+| CodeChef | Sum of Array elements | C++ | Easy | Array |
 
 <!-- DASHBOARD:END -->

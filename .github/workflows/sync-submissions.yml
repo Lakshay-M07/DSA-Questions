@@ -36,7 +36,20 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: Run local regression tests
-        run: python -m pytest -q
+        run: |
+          set +e
+          python -m pytest -q > /tmp/pytest.log 2>&1
+          status=$?
+          cat /tmp/pytest.log
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/pytest.log pytest_failure.txt
+            git config user.name "Lakshay-M07"
+            git config user.email "222706893+Lakshay-M07@users.noreply.github.com"
+            git add pytest_failure.txt
+            git commit -m "debug: capture pytest failure [skip ci]"
+            git push
+            exit "$status"
+          fi
 
       - name: Configure Git identity
         run: |

@@ -1,6 +1,7 @@
 <div align="center">
 
 <!-- DASHBOARD:START -->
+<div align="center">
 ## 📊 Progress Dashboard
 
 ### Total Progress — **3 problems solved**
@@ -36,8 +37,6 @@
 **Languages:** Python: **1**  
 **Topics:** Ai: **1**
 
----
-
 ## Recent Accepted Submissions
 
 | Platform | Problem | Language | Difficulty | Topic |
@@ -47,6 +46,8 @@
 | CodeChef | Sum of Array elements | C++ | Easy | Array |
 
 <!-- DASHBOARD:END -->
+
+</div>
 
 </div>
 

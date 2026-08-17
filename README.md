@@ -38,4 +38,56 @@ Use the repository tree to study problems by **platform, language, topic, or dif
 - Keep the entire system GitHub-native without a separate database or hosted dashboard.
 
 <!-- DASHBOARD:START -->
+## 📊 Progress Dashboard
+
+### Total Progress — **3 problems solved**
+
+**Easy** 3 · **Medium** 0 · **Hard** 0
+
+🔥 **Current streak:** 2 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
+
+### Platforms
+
+### 🟨 LeetCode
+
+**1** solved
+
+**Easy** 1 · **Medium** 0 · **Hard** 0
+
+**Languages:** C++: **1**
+
+**Categories:** Array: **1**
+
+---
+
+### 🟪 CodeChef
+
+**1** solved
+
+**Easy** 1 · **Medium** 0 · **Hard** 0
+
+**Languages:** C++: **1**
+
+**Categories:** Array: **1**
+
+---
+
+### 🟩 HackerRank
+
+**1** solved
+
+**Easy** 1 · **Medium** 0 · **Hard** 0
+
+**Languages:** Python: **1**
+
+**Categories:** Ai: **1**
+
+### Recent Accepted Submissions
+
+| Platform | Problem | Language | Difficulty | Category |
+|---|---|---|---|---|
+| HackerRank | Say "Hello, World!" With Python | Python | Easy | Ai |
+| LeetCode | Two Sum | C++ | Easy | Array |
+| CodeChef | Sum of Array elements | C++ | Easy | Array |
+
 <!-- DASHBOARD:END -->

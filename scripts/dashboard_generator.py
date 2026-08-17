@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import html
 import json
 import re
 from collections import Counter, defaultdict
@@ -17,10 +16,10 @@ START_MARKER = "<!-- DASHBOARD:START -->"
 END_MARKER = "<!-- DASHBOARD:END -->"
 PLATFORMS = ("LeetCode", "CodeChef", "HackerRank")
 DIFFICULTIES = ("Easy", "Medium", "Hard")
-PLATFORM_ACCENTS = {
-    "LeetCode": "#f0b90b",
-    "CodeChef": "#a855f7",
-    "HackerRank": "#16c60c",
+PLATFORM_EMOJIS = {
+    "LeetCode": "🟨",
+    "CodeChef": "🟪",
+    "HackerRank": "🟩",
 }
 
 
@@ -149,28 +148,24 @@ def streak_stats(records: list[dict[str, Any]], today: datetime | None = None) -
 def _format_counter(counter: Counter[str]) -> str:
     if not counter:
         return "—"
-    return " · ".join(
-        f"{html.escape(key)} **{value}**" for key, value in counter.most_common()
-    )
+    return " · ".join(f"{key}: **{value}**" for key, value in counter.most_common())
 
 
-def _platform_card(platform: str, stats: dict[str, Any]) -> str:
+def _platform_section(platform: str, stats: dict[str, Any]) -> str:
     difficulty = stats["difficulty"]
-    accent = PLATFORM_ACCENTS[platform]
     solved = stats["solved"]
+    emoji = PLATFORM_EMOJIS[platform]
     easy = difficulty.get("Easy", 0)
     medium = difficulty.get("Medium", 0)
     hard = difficulty.get("Hard", 0)
-    accepted_label = "accepted problem" if solved == 1 else "accepted problems"
     return "\n".join(
         [
-            f'<div style="border-left:4px solid {accent}; padding:18px 20px; margin:12px 0; background:#161b22; border-radius:10px;">',
-            f'<h3 style="margin:0 0 4px;">{platform}</h3>',
-            f'<p style="margin:0 0 12px; opacity:.75;">{solved} {accepted_label}</p>',
-            f'<p style="margin:0 0 10px;"><strong style="color:#16c60c;">Easy {easy}</strong> &nbsp;·&nbsp; <strong style="color:#f0b90b;">Medium {medium}</strong> &nbsp;·&nbsp; <strong style="color:#ef4444;">Hard {hard}</strong></p>',
-            f'<p style="margin:0 0 6px;"><strong>Languages</strong> &nbsp; {_format_counter(stats["languages"])}</p>',
-            f'<p style="margin:0;"><strong>Topics</strong> &nbsp; {_format_counter(stats["categories"])}</p>',
-            '</div>',
+            f"### {emoji} {platform}",
+            "",
+            f"**{solved}** solved  ",
+            f"**Easy** {easy} · **Medium** {medium} · **Hard** {hard}  ",
+            f"**Languages:** {_format_counter(stats['languages'])}  ",
+            f"**Topics:** {_format_counter(stats['categories'])}",
         ]
     )
 
@@ -191,6 +186,10 @@ def _recent_records(platform_records: dict[str, list[dict[str, Any]]]) -> list[d
     return dated + undated
 
 
+def _table_cell(value: Any) -> str:
+    return str(value if value not in (None, "") else "—").replace("|", "\\|").replace("\n", " ")
+
+
 def _recent_table(platform_records: dict[str, list[dict[str, Any]]]) -> str:
     lines = [
         "| Platform | Problem | Language | Difficulty | Topic |",
@@ -199,11 +198,11 @@ def _recent_table(platform_records: dict[str, list[dict[str, Any]]]) -> str:
     for record in _recent_records(platform_records):
         lines.append(
             "| {platform} | {title} | {language} | {difficulty} | {topic} |".format(
-                platform=record.get("platform", "—"),
-                title=record.get("title", "—"),
-                language=record.get("language", "—"),
-                difficulty=record.get("difficulty") or "—",
-                topic=record.get("primary_category") or "—",
+                platform=_table_cell(record.get("platform")),
+                title=_table_cell(record.get("title")),
+                language=_table_cell(record.get("language")),
+                difficulty=_table_cell(record.get("difficulty")),
+                topic=_table_cell(record.get("primary_category")),
             )
         )
     if len(lines) == 2:
@@ -223,31 +222,41 @@ def render_dashboard() -> str:
     current_text = "—" if current_streak is None else str(current_streak)
     best_text = "—" if best_streak is None else str(best_streak)
 
-    return "\n".join(
+    sections: list[str] = [
+        START_MARKER,
+        "<div align=\"center\">",
+        "## 📊 Progress Dashboard",
+        "",
+        f"### Total Progress — **{total} problems solved**",
+        "",
+        f"**Easy** {all_difficulty.get('Easy', 0)} · **Medium** {all_difficulty.get('Medium', 0)} · **Hard** {all_difficulty.get('Hard', 0)}",
+        "",
+        f"🔥 **Current streak:** {current_text} days &nbsp;&nbsp; 🏆 **Best streak:** {best_text} days",
+        "",
+        "## Platforms",
+        "",
+    ]
+
+    for index, platform in enumerate(PLATFORMS):
+        sections.append(_platform_section(platform, stats[platform]))
+        if index < len(PLATFORMS) - 1:
+            sections.extend(["", "---", ""])
+
+    sections.extend(
         [
-            START_MARKER,
-            "<div align=\"center\">",
-            "## 📊 Progress Dashboard",
             "",
-            f"### Total Progress — **{total} problems solved**",
-            "",
-            f"**Easy** {all_difficulty.get('Easy', 0)} · **Medium** {all_difficulty.get('Medium', 0)} · **Hard** {all_difficulty.get('Hard', 0)}",
-            "",
-            f"🔥 **Current streak:** {current_text} days &nbsp;&nbsp; 🏆 **Best streak:** {best_text} days",
-            "",
-            "</div>",
-            "",
-            "## Platforms",
-            "",
-            *[_platform_card(platform, stats[platform]) for platform in PLATFORMS],
+            "---",
             "",
             "## Recent Accepted Submissions",
             "",
             _recent_table(platform_records),
             "",
             END_MARKER,
+            "",
+            "</div>",
         ]
-    ).strip() + "\n"
+    )
+    return "\n".join(sections).strip() + "\n"
 
 
 def update_readme(readme: str, dashboard: str) -> str:

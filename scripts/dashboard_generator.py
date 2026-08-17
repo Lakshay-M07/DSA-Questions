@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import re
 from collections import Counter, defaultdict
@@ -16,6 +17,11 @@ START_MARKER = "<!-- DASHBOARD:START -->"
 END_MARKER = "<!-- DASHBOARD:END -->"
 PLATFORMS = ("LeetCode", "CodeChef", "HackerRank")
 DIFFICULTIES = ("Easy", "Medium", "Hard")
+PLATFORM_ACCENTS = {
+    "LeetCode": "#f0b90b",
+    "CodeChef": "#a855f7",
+    "HackerRank": "#16c60c",
+}
 
 
 def _load_json(path: Path, default: Any) -> Any:
@@ -140,35 +146,66 @@ def streak_stats(records: list[dict[str, Any]], today: datetime | None = None) -
     return current, best
 
 
-def _logo(platform: str) -> str:
-    return {"LeetCode": "🟨", "CodeChef": "🟪", "HackerRank": "🟩"}[platform]
-
-
 def _format_counter(counter: Counter[str]) -> str:
     if not counter:
         return "—"
-    return " · ".join(f"{key}: **{value}**" for key, value in counter.most_common())
+    return " · ".join(f"{html.escape(key)} <strong>{value}</strong>" for key, value in counter.most_common())
+
+
+def _metric_card(value: int | str, label: str) -> str:
+    return (
+        '<td style="padding:18px 24px;text-align:center;min-width:120px;">'
+        f'<div style="font-size:28px;font-weight:700;line-height:1.1;">{value}</div>'
+        f'<div style="font-size:13px;opacity:.72;margin-top:6px;">{label}</div>'
+        "</td>"
+    )
 
 
 def _platform_card(platform: str, stats: dict[str, Any]) -> str:
     difficulty = stats["difficulty"]
-    solved = stats["solved"]
-    difficulty_parts = " · ".join(f"**{level}** {difficulty.get(level, 0)}" for level in DIFFICULTIES)
+    accent = PLATFORM_ACCENTS[platform]
+    easy = difficulty.get("Easy", 0)
+    medium = difficulty.get("Medium", 0)
+    hard = difficulty.get("Hard", 0)
     return "\n".join(
         [
-            f"<details open>\n<summary><strong>{_logo(platform)} {platform} · {solved} solved</strong></summary>",
-            "",
-            f"<p><strong>{solved}</strong> solved</p>",
-            "",
-            f"<p>{difficulty_parts}</p>",
-            "",
-            f"<p><strong>Languages:</strong> {_format_counter(stats['languages'])}</p>",
-            "",
-            f"<p><strong>Categories:</strong> {_format_counter(stats['categories'])}</p>",
-            "",
-            "</details>",
+            '<td style="width:33.33%;vertical-align:top;padding:8px;">',
+            f'<div style="border:1px solid #30363d;border-top:4px solid {accent};border-radius:12px;padding:22px 20px;">',
+            f'<div style="font-size:20px;font-weight:700;">{platform}</div>',
+            f'<div style="margin-top:14px;font-size:14px;opacity:.8;">{stats["solved"]} accepted problem{\"s\" if stats["solved"] != 1 else \"\"}</div>',
+            '<table style="margin-top:14px;width:100%;"><tr>',
+            f'<td style="padding:8px 4px;text-align:center;"><strong>{easy}</strong><br><small>Easy</small></td>',
+            f'<td style="padding:8px 4px;text-align:center;"><strong>{medium}</strong><br><small>Medium</small></td>',
+            f'<td style="padding:8px 4px;text-align:center;"><strong>{hard}</strong><br><small>Hard</small></td>',
+            '</tr></table>',
+            f'<div style="margin-top:12px;font-size:13px;line-height:1.7;"><strong>Languages</strong><br>{_format_counter(stats["languages"])}</div>',
+            f'<div style="margin-top:10px;font-size:13px;line-height:1.7;"><strong>Topics</strong><br>{_format_counter(stats["categories"])}</div>',
+            '</div>',
+            '</td>',
         ]
     )
+
+
+def _recent_table(platform_records: dict[str, list[dict[str, Any]]]) -> str:
+    rows = [
+        '<table style="width:100%;">',
+        '<thead><tr><th align="left">Platform</th><th align="left">Problem</th><th align="left">Language</th><th align="left">Difficulty</th><th align="left">Topic</th></tr></thead>',
+        '<tbody>',
+    ]
+    for record in _recent_records(platform_records):
+        rows.append(
+            "<tr>"
+            f"<td><strong>{html.escape(str(record.get('platform', '—')))}</strong></td>"
+            f"<td>{html.escape(str(record.get('title', '—')))}</td>"
+            f"<td>{html.escape(str(record.get('language', '—')))}</td>"
+            f"<td>{html.escape(str(record.get('difficulty') or '—'))}</td>"
+            f"<td>{html.escape(str(record.get('primary_category') or '—'))}</td>"
+            "</tr>"
+        )
+    if len(rows) == 3:
+        rows.append('<tr><td>—</td><td>No committed submission data yet</td><td>—</td><td>—</td><td>—</td></tr>')
+    rows.append('</tbody></table>')
+    return "\n".join(rows)
 
 
 def _recent_records(platform_records: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
@@ -188,57 +225,37 @@ def render_dashboard() -> str:
     for item in stats.values():
         all_difficulty.update(item["difficulty"])
     current_streak, best_streak = streak_stats(all_records)
-
-    recent_lines = [
-        "<table>",
-        "<thead><tr><th>Platform</th><th>Problem</th><th>Language</th><th>Difficulty</th><th>Category</th></tr></thead>",
-        "<tbody>",
-    ]
-    for record in _recent_records(platform_records):
-        recent_lines.append(
-            "<tr><td><strong>{platform}</strong></td><td>{title}</td><td>{language}</td><td>{difficulty}</td><td>{category}</td></tr>".format(
-                platform=record.get("platform", "—"),
-                title=record.get("title", "—"),
-                language=record.get("language", "—"),
-                difficulty=record.get("difficulty") or "—",
-                category=record.get("primary_category") or "—",
-            )
-        )
-    if len(recent_lines) == 3:
-        recent_lines.append("<tr><td>—</td><td>No committed submission data yet</td><td>—</td><td>—</td><td>—</td></tr>")
-    recent_lines.append("</tbody></table>")
-
-    cards = "\n\n".join(_platform_card(platform, stats[platform]) for platform in PLATFORMS)
     current_text = "—" if current_streak is None else str(current_streak)
     best_text = "—" if best_streak is None else str(best_streak)
 
     return "\n".join(
         [
             START_MARKER,
-            "<div align=\"center\">",
-            "<h1>📊 DSA Progress Dashboard</h1>",
-            "<p><strong>LeetCode · CodeChef · HackerRank</strong></p>",
-            "<p>Accepted solutions, tracked automatically from this repository.</p>",
-            "",
-            "<table><tr>",
-            f"<td align=\"center\"><strong>{total}</strong><br>Problems Solved</td>",
-            f"<td align=\"center\"><strong>{all_difficulty.get('Easy', 0)}</strong><br>Easy</td>",
-            f"<td align=\"center\"><strong>{all_difficulty.get('Medium', 0)}</strong><br>Medium</td>",
-            f"<td align=\"center\"><strong>{all_difficulty.get('Hard', 0)}</strong><br>Hard</td>",
-            f"<td align=\"center\"><strong>{current_text}</strong><br>Current Streak</td>",
-            f"<td align=\"center\"><strong>{best_text}</strong><br>Best Streak</td>",
-            "</tr></table>",
-            "",
-            "</div>",
-            "",
-            "## Platforms",
-            "",
-            cards,
-            "",
-            "## Recent Accepted Submissions",
-            "",
-            *recent_lines,
-            "",
+            '<div align="center">',
+            '<h1>📊 DSA Progress Dashboard</h1>',
+            '<p><strong>LeetCode · CodeChef · HackerRank</strong></p>',
+            '<p style="opacity:.75;">Accepted solutions, tracked automatically from this repository.</p>',
+            '',
+            '<table style="width:100%;"><tr>',
+            _metric_card(total, "Problems Solved"),
+            _metric_card(all_difficulty.get("Easy", 0), "Easy"),
+            _metric_card(all_difficulty.get("Medium", 0), "Medium"),
+            _metric_card(all_difficulty.get("Hard", 0), "Hard"),
+            _metric_card(current_text, "Current Streak"),
+            _metric_card(best_text, "Best Streak"),
+            '</tr></table>',
+            '</div>',
+            '',
+            '## Platforms',
+            '',
+            '<table style="width:100%;"><tr>',
+            *(_platform_card(platform, stats[platform]) for platform in PLATFORMS),
+            '</tr></table>',
+            '',
+            '## Recent Accepted Submissions',
+            '',
+            _recent_table(platform_records),
+            '',
             END_MARKER,
         ]
     ).strip() + "\n"

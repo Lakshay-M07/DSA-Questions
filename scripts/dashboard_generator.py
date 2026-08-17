@@ -161,29 +161,53 @@ def _metric_card(value: int | str, label: str) -> str:
     )
 
 
+def _difficulty_bar(difficulty: Counter[str], total: int) -> str:
+    segments: list[str] = []
+    if total:
+        for level, accent in (("Easy", "#16c60c"), ("Medium", "#f0b90b"), ("Hard", "#ef4444")):
+            count = difficulty.get(level, 0)
+            if count:
+                width = max(4, round(count / total * 100))
+                segments.append(f'<span style="display:inline-block;width:{width}%;height:6px;background:{accent};"></span>')
+    if not segments:
+        segments.append('<span style="display:inline-block;width:100%;height:6px;background:#30363d;"></span>')
+    return "".join(segments)
+
+
 def _platform_card(platform: str, stats: dict[str, Any]) -> str:
     difficulty = stats["difficulty"]
     accent = PLATFORM_ACCENTS[platform]
+    solved = stats["solved"]
     easy = difficulty.get("Easy", 0)
     medium = difficulty.get("Medium", 0)
     hard = difficulty.get("Hard", 0)
     return "\n".join(
         [
-            '<td style="width:33.33%;vertical-align:top;padding:8px;">',
-            f'<div style="border:1px solid #30363d;border-top:4px solid {accent};border-radius:12px;padding:22px 20px;">',
+            f'<td style="width:33.33%;vertical-align:top;padding:8px;">',
+            f'<div style="border:1px solid #30363d;border-radius:14px;padding:22px 20px;background:rgba(255,255,255,.02);">',
+            f'<div style="border-top:4px solid {accent};margin:-22px -20px 18px;border-radius:14px 14px 0 0;"></div>',
             f'<div style="font-size:20px;font-weight:700;">{platform}</div>',
-            f'<div style="margin-top:14px;font-size:14px;opacity:.8;">{stats["solved"]} accepted problem{\"s\" if stats["solved"] != 1 else \"\"}</div>',
-            '<table style="margin-top:14px;width:100%;"><tr>',
-            f'<td style="padding:8px 4px;text-align:center;"><strong>{easy}</strong><br><small>Easy</small></td>',
-            f'<td style="padding:8px 4px;text-align:center;"><strong>{medium}</strong><br><small>Medium</small></td>',
-            f'<td style="padding:8px 4px;text-align:center;"><strong>{hard}</strong><br><small>Hard</small></td>',
+            f'<div style="margin-top:8px;font-size:14px;opacity:.72;">{solved} accepted problem{\"s\" if solved != 1 else \"\"}</div>',
+            f'<div style="margin-top:16px;">{_difficulty_bar(difficulty, solved)}</div>',
+            '<table style="width:100%;margin-top:8px;"><tr>',
+            f'<td style="padding:7px 4px;text-align:left;"><strong style="color:#16c60c;">{easy}</strong><br><small>Easy</small></td>',
+            f'<td style="padding:7px 4px;text-align:center;"><strong style="color:#f0b90b;">{medium}</strong><br><small>Medium</small></td>',
+            f'<td style="padding:7px 4px;text-align:right;"><strong style="color:#ef4444;">{hard}</strong><br><small>Hard</small></td>',
             '</tr></table>',
-            f'<div style="margin-top:12px;font-size:13px;line-height:1.7;"><strong>Languages</strong><br>{_format_counter(stats["languages"])}</div>',
-            f'<div style="margin-top:10px;font-size:13px;line-height:1.7;"><strong>Topics</strong><br>{_format_counter(stats["categories"])}</div>',
+            f'<div style="margin-top:14px;font-size:13px;line-height:1.8;"><strong>Languages</strong><br>{_format_counter(stats["languages"])}</div>',
+            f'<div style="margin-top:8px;font-size:13px;line-height:1.8;"><strong>Topics</strong><br>{_format_counter(stats["categories"])}</div>',
             '</div>',
             '</td>',
         ]
     )
+
+
+def _recent_records(platform_records: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    rows = [{**record, "platform": platform} for platform, records in platform_records.items() for record in _unique_records(records)]
+    dated = [row for row in rows if _parse_timestamp(row.get("accepted_at"))]
+    undated = [row for row in rows if not _parse_timestamp(row.get("accepted_at"))]
+    dated.sort(key=lambda row: _parse_timestamp(row.get("accepted_at")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    return dated + undated
 
 
 def _recent_table(platform_records: dict[str, list[dict[str, Any]]]) -> str:
@@ -208,14 +232,6 @@ def _recent_table(platform_records: dict[str, list[dict[str, Any]]]) -> str:
     return "\n".join(rows)
 
 
-def _recent_records(platform_records: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
-    rows = [{**record, "platform": platform} for platform, records in platform_records.items() for record in _unique_records(records)]
-    dated = [row for row in rows if _parse_timestamp(row.get("accepted_at"))]
-    undated = [row for row in rows if not _parse_timestamp(row.get("accepted_at"))]
-    dated.sort(key=lambda row: _parse_timestamp(row.get("accepted_at")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
-    return dated + undated
-
-
 def render_dashboard() -> str:
     platform_records = discover_platform_records()
     stats = {platform: platform_stats(platform_records.get(platform, [])) for platform in PLATFORMS}
@@ -236,7 +252,7 @@ def render_dashboard() -> str:
             '<p><strong>LeetCode · CodeChef · HackerRank</strong></p>',
             '<p style="opacity:.75;">Accepted solutions, tracked automatically from this repository.</p>',
             '',
-            '<table style="width:100%;"><tr>',
+            '<table style="width:100%;border:0;"><tr>',
             _metric_card(total, "Problems Solved"),
             _metric_card(all_difficulty.get("Easy", 0), "Easy"),
             _metric_card(all_difficulty.get("Medium", 0), "Medium"),
@@ -248,7 +264,7 @@ def render_dashboard() -> str:
             '',
             '## Platforms',
             '',
-            '<table style="width:100%;"><tr>',
+            '<table style="width:100%;border:0;"><tr>',
             *(_platform_card(platform, stats[platform]) for platform in PLATFORMS),
             '</tr></table>',
             '',

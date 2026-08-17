@@ -1,33 +1,41 @@
 # DSA Questions
 
-Automatically tracks accepted DSA submissions from **LeetCode, CodeChef, and HackerRank** using GitHub Actions.
+A GitHub-native archive for accepted Data Structures & Algorithms submissions from **LeetCode, CodeChef, and HackerRank**.
 
-## How it works
+The repository is intentionally automated: GitHub Actions periodically checks the configured platforms, imports eligible accepted submissions, stores the source in a consistent structure, and refreshes the dashboard below.
 
-- GitHub Actions checks the supported platforms approximately every 20 minutes.
-- Only accepted submissions are eligible.
-- A submission is uniquely identified by **platform + problem + language**.
-- Re-submitting the same problem in the same language does not create another record.
-- The submitted source code is stored in the repository.
-- Difficulty and official tags are preserved as metadata; a primary category is used for the folder hierarchy so solutions are not duplicated across tag folders.
-- The README will contain the generated progress dashboard once the platform adapters are enabled.
+## 🚀 How to use this repository
 
-## Repository structure
+### Browse solutions
+
+Solutions are organized by platform, language, category, and difficulty:
 
 ```text
 Platform/
 └── Language/
     └── Category/
         └── Easy | Medium | Hard/
-            └── Question.ext
+            └── Problem/
+                ├── solution.ext
+                └── README.md
 ```
 
-## Automation status
+Use the repository tree to study problems by **platform, language, topic, or difficulty**. The README dashboard is generated automatically from committed repository data.
 
-| Platform | Adapter | Status |
-|---|---|---|
-| LeetCode | Authenticated submission sync | In progress |
-| CodeChef | Authenticated submission sync | In progress |
-| HackerRank | Authenticated submission sync | In progress |
+### Automation
 
-> Platform credentials are stored as GitHub Actions Secrets and are never committed to this repository.
+- Accepted submissions are synchronized through GitHub Actions.
+- A submission is tracked by **platform + problem + language** so duplicate imports are avoided.
+- Existing repository contents remain the authoritative source for dashboard totals.
+- Platform credentials are stored only as GitHub Actions Secrets and are never committed.
+- The dashboard generator updates only its marked section and commits the README only when meaningful dashboard data changes.
+
+## 🧭 Repository goals
+
+- Keep accepted DSA work organized and easy to review.
+- Make progress across multiple coding platforms visible at a glance.
+- Preserve useful problem metadata such as difficulty, language, and category.
+- Keep the entire system GitHub-native without a separate database or hosted dashboard.
+
+<!-- DASHBOARD:START -->
+<!-- DASHBOARD:END -->

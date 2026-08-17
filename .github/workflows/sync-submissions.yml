@@ -1,8 +1,6 @@
 name: Sync Accepted DSA Submissions
 
 on:
-  push:
-    branches: [main]
   schedule:
     - cron: '7,27,47 * * * *'
   workflow_dispatch:
@@ -36,20 +34,7 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: Run local regression tests
-        run: |
-          set +e
-          python -m pytest -q > /tmp/pytest.log 2>&1
-          status=$?
-          cat /tmp/pytest.log
-          if [ "$status" -ne 0 ]; then
-            cp /tmp/pytest.log pytest_failure.txt
-            git config user.name "Lakshay-M07"
-            git config user.email "222706893+Lakshay-M07@users.noreply.github.com"
-            git add pytest_failure.txt
-            git commit -m "debug: capture pytest failure [skip ci]"
-            git push
-            exit "$status"
-          fi
+        run: python -m pytest -q
 
       - name: Configure Git identity
         run: |
@@ -91,20 +76,7 @@ jobs:
           LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
           CODECHEF_USERNAME: ${{ secrets.CODECHEF_USERNAME }}
           CODECHEF_PASSWORD: ${{ secrets.CODECHEF_PASSWORD }}
-        run: |
-          set +e
-          python -m scripts.leetcode_sync_runner > /tmp/sync.log 2>&1
-          status=$?
-          cat /tmp/sync.log
-          if [ "$status" -ne 0 ]; then
-            cp /tmp/sync.log sync_failure.txt
-            git config user.name "Lakshay-M07"
-            git config user.email "222706893+Lakshay-M07@users.noreply.github.com"
-            git add sync_failure.txt
-            git commit -m "debug: capture submission sync failure [skip ci]"
-            git push
-            exit "$status"
-          fi
+        run: python -m scripts.leetcode_sync_runner
 
       - name: Sync HackerRank accepted submissions
         env:

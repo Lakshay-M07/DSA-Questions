@@ -177,8 +177,8 @@ def _platform_card(platform: str, stats: dict[str, Any]) -> str:
     hard = difficulty.get("Hard", 0)
     return "\n".join(
         [
-            '<td style="width:33.33%;vertical-align:top;padding:8px;border:0;">',
-            f'<div style="border:1px solid #30363d;border-radius:14px;padding:20px;background:rgba(255,255,255,.018);">',
+            '<td style="width:33.33%;vertical-align:top;padding:8px;border:0;background:transparent;">',
+            '<div style="background:rgba(255,255,255,.018);border-radius:14px;padding:20px;box-shadow:inset 0 0 0 1px rgba(139,148,158,.35);">',
             f'<div style="height:4px;background:{accent};margin:-20px -20px 18px;border-radius:14px 14px 0 0;"></div>',
             f'<div style="font-size:20px;font-weight:700;">{platform}</div>',
             f'<div style="margin-top:6px;font-size:13px;opacity:.68;">{solved} accepted problem{\"s\" if solved != 1 else \"\"}</div>',
@@ -245,6 +245,7 @@ def render_dashboard() -> str:
             '<h1>📊 DSA Progress Dashboard</h1>',
             '<p><strong>LeetCode · CodeChef · HackerRank</strong></p>',
             '<p style="opacity:.75;">Accepted solutions, tracked automatically from this repository.</p>',
+            '</div>',
             '',
             '<table style="width:100%;border:0;background:transparent;"><tr>',
             f'<td style="width:25%;padding:14px;text-align:center;border:0;background:transparent;">{_metric_line("Problems Solved", total)}</td>',
@@ -254,7 +255,6 @@ def render_dashboard() -> str:
             f'<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;">{_metric_line("Current Streak", current_text)}</td>',
             f'<td style="width:15%;padding:14px;text-align:center;border:0;background:transparent;">{_metric_line("Best Streak", best_text)}</td>',
             '</tr></table>',
-            '</div>',
             '',
             '## Platforms',
             '',

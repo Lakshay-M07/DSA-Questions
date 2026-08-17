@@ -125,20 +125,18 @@ def streak_stats(records: list[dict[str, Any]], today: datetime | None = None) -
             current_run = 1
 
     now_date = (today or datetime.now(timezone.utc)).astimezone(timezone.utc).date()
+    yesterday = now_date.fromordinal(now_date.toordinal() - 1)
     if now_date in dates:
-        current = 0
         cursor = now_date
-        while cursor in dates:
-            current += 1
-            cursor = cursor.fromordinal(cursor.toordinal() - 1)
-    elif now_date.fromordinal(now_date.toordinal() - 1) in dates:
-        current = 0
-        cursor = now_date.fromordinal(now_date.toordinal() - 1)
-        while cursor in dates:
-            current += 1
-            cursor = cursor.fromordinal(cursor.toordinal() - 1)
+    elif yesterday in dates:
+        cursor = yesterday
     else:
-        current = 0
+        return 0, best
+
+    current = 0
+    while cursor in dates:
+        current += 1
+        cursor = cursor.fromordinal(cursor.toordinal() - 1)
     return current, best
 
 
@@ -154,18 +152,21 @@ def _format_counter(counter: Counter[str]) -> str:
 
 def _platform_card(platform: str, stats: dict[str, Any]) -> str:
     difficulty = stats["difficulty"]
+    solved = stats["solved"]
     difficulty_parts = " · ".join(f"**{level}** {difficulty.get(level, 0)}" for level in DIFFICULTIES)
     return "\n".join(
         [
-            f"### {_logo(platform)} {platform}",
+            f"<details open>\n<summary><strong>{_logo(platform)} {platform} · {solved} solved</strong></summary>",
             "",
-            f"**{stats['solved']}** solved",
+            f"<p><strong>{solved}</strong> solved</p>",
             "",
-            difficulty_parts,
+            f"<p>{difficulty_parts}</p>",
             "",
-            f"**Languages:** {_format_counter(stats['languages'])}",
+            f"<p><strong>Languages:</strong> {_format_counter(stats['languages'])}</p>",
             "",
-            f"**Categories:** {_format_counter(stats['categories'])}",
+            f"<p><strong>Categories:</strong> {_format_counter(stats['categories'])}</p>",
+            "",
+            "</details>",
         ]
     )
 
@@ -188,10 +189,14 @@ def render_dashboard() -> str:
         all_difficulty.update(item["difficulty"])
     current_streak, best_streak = streak_stats(all_records)
 
-    recent_lines = ["| Platform | Problem | Language | Difficulty | Category |", "|---|---|---|---|---|"]
+    recent_lines = [
+        "<table>",
+        "<thead><tr><th>Platform</th><th>Problem</th><th>Language</th><th>Difficulty</th><th>Category</th></tr></thead>",
+        "<tbody>",
+    ]
     for record in _recent_records(platform_records):
         recent_lines.append(
-            "| {platform} | {title} | {language} | {difficulty} | {category} |".format(
+            "<tr><td><strong>{platform}</strong></td><td>{title}</td><td>{language}</td><td>{difficulty}</td><td>{category}</td></tr>".format(
                 platform=record.get("platform", "—"),
                 title=record.get("title", "—"),
                 language=record.get("language", "—"),
@@ -199,29 +204,38 @@ def render_dashboard() -> str:
                 category=record.get("primary_category") or "—",
             )
         )
-    if len(recent_lines) == 2:
-        recent_lines.append("| — | No committed submission data yet | — | — | — |")
+    if len(recent_lines) == 3:
+        recent_lines.append("<tr><td>—</td><td>No committed submission data yet</td><td>—</td><td>—</td><td>—</td></tr>")
+    recent_lines.append("</tbody></table>")
 
-    cards = "\n\n---\n\n".join(_platform_card(platform, stats[platform]) for platform in PLATFORMS)
+    cards = "\n\n".join(_platform_card(platform, stats[platform]) for platform in PLATFORMS)
     current_text = "—" if current_streak is None else str(current_streak)
     best_text = "—" if best_streak is None else str(best_streak)
 
     return "\n".join(
         [
             START_MARKER,
-            "## 📊 Progress Dashboard",
+            "<div align=\"center\">",
+            "<h1>📊 DSA Progress Dashboard</h1>",
+            "<p><strong>LeetCode · CodeChef · HackerRank</strong></p>",
+            "<p>Accepted solutions, tracked automatically from this repository.</p>",
             "",
-            f"### Total Progress — **{total} problems solved**",
+            "<table><tr>",
+            f"<td align=\"center\"><strong>{total}</strong><br>Problems Solved</td>",
+            f"<td align=\"center\"><strong>{all_difficulty.get('Easy', 0)}</strong><br>Easy</td>",
+            f"<td align=\"center\"><strong>{all_difficulty.get('Medium', 0)}</strong><br>Medium</td>",
+            f"<td align=\"center\"><strong>{all_difficulty.get('Hard', 0)}</strong><br>Hard</td>",
+            f"<td align=\"center\"><strong>{current_text}</strong><br>Current Streak</td>",
+            f"<td align=\"center\"><strong>{best_text}</strong><br>Best Streak</td>",
+            "</tr></table>",
             "",
-            f"**Easy** {all_difficulty.get('Easy', 0)} · **Medium** {all_difficulty.get('Medium', 0)} · **Hard** {all_difficulty.get('Hard', 0)}",
+            "</div>",
             "",
-            f"🔥 **Current streak:** {current_text} days &nbsp;&nbsp; 🏆 **Best streak:** {best_text} days",
-            "",
-            "### Platforms",
+            "## Platforms",
             "",
             cards,
             "",
-            "### Recent Accepted Submissions",
+            "## Recent Accepted Submissions",
             "",
             *recent_lines,
             "",

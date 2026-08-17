@@ -68,10 +68,27 @@ def test_dashboard_contains_required_sections_and_no_solution_code():
     assert "LeetCode" in dashboard
     assert "CodeChef" in dashboard
     assert "HackerRank" in dashboard
-    assert "Current streak" in dashboard
-    assert "Best streak" in dashboard
+    assert "Current Streak" in dashboard
+    assert "Best Streak" in dashboard
     assert "Recent Accepted Submissions" in dashboard
     assert "#include <" not in dashboard
+
+
+def test_platform_cards_show_solved_once_and_use_distinct_accents():
+    dashboard = render_dashboard()
+    assert "LeetCode · 1 solved" not in dashboard
+    assert "1 accepted problem" in dashboard
+    assert "border-top:4px solid #f0b90b" in dashboard
+    assert "border-top:4px solid #a855f7" in dashboard
+    assert "border-top:4px solid #16c60c" in dashboard
+
+
+def test_dashboard_uses_readable_metric_labels():
+    dashboard = render_dashboard()
+    assert "Problems Solved" in dashboard
+    assert "Current Streak" in dashboard
+    assert "Best Streak" in dashboard
+    assert dashboard.index("Problems Solved") < dashboard.index("## Platforms")
 
 
 def test_update_readme_replaces_only_generated_section():

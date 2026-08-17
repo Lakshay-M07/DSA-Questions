@@ -85,5 +85,16 @@ jobs:
           HACKERRANK_SESSION_ID: ${{ secrets.HACKERRANK_SESSION_ID }}
         run: python -m scripts.hackerrank_sync_runner
 
+      - name: Generate repository dashboard
+        run: |
+          python -m scripts.dashboard_generator
+          if git diff --quiet -- README.md; then
+            echo "Dashboard is already up to date."
+          else
+            git add README.md
+            git commit -m "docs: update DSA progress dashboard"
+            git push
+          fi
+
       - name: Verify repository state
         run: git status --short

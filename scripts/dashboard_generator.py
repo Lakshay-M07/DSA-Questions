@@ -16,11 +16,7 @@ START_MARKER = "<!-- DASHBOARD:START -->"
 END_MARKER = "<!-- DASHBOARD:END -->"
 PLATFORMS = ("LeetCode", "CodeChef", "HackerRank")
 DIFFICULTIES = ("Easy", "Medium", "Hard")
-PLATFORM_EMOJIS = {
-    "LeetCode": "🟨",
-    "CodeChef": "🟪",
-    "HackerRank": "🟩",
-}
+PLATFORM_EMOJIS = {"LeetCode": "🟨", "CodeChef": "🟪", "HackerRank": "🟩"}
 
 
 def _load_json(path: Path, default: Any) -> Any:
@@ -42,7 +38,6 @@ def _hacker_rank_records() -> list[dict[str, Any]]:
     hr_root = ROOT / "HackerRank"
     if not hr_root.exists():
         return records
-
     for readme_path in hr_root.rglob("README.md"):
         try:
             relative = readme_path.relative_to(hr_root).parts
@@ -119,7 +114,6 @@ def streak_stats(records: list[dict[str, Any]], today: datetime | None = None) -
     dates = {parsed.astimezone(timezone.utc).date() for record in records if (parsed := _parse_timestamp(record.get("accepted_at")))}
     if not dates:
         return None, None
-
     ordered = sorted(dates)
     best = current_run = 1
     for previous, current in zip(ordered, ordered[1:]):
@@ -128,7 +122,6 @@ def streak_stats(records: list[dict[str, Any]], today: datetime | None = None) -
             best = max(best, current_run)
         else:
             current_run = 1
-
     now_date = (today or datetime.now(timezone.utc)).astimezone(timezone.utc).date()
     yesterday = now_date.fromordinal(now_date.toordinal() - 1)
     if now_date in dates:
@@ -137,7 +130,6 @@ def streak_stats(records: list[dict[str, Any]], today: datetime | None = None) -
         cursor = yesterday
     else:
         return 0, best
-
     current = 0
     while cursor in dates:
         current += 1
@@ -154,13 +146,12 @@ def _format_counter(counter: Counter[str]) -> str:
 def _platform_section(platform: str, stats: dict[str, Any]) -> str:
     difficulty = stats["difficulty"]
     solved = stats["solved"]
-    emoji = PLATFORM_EMOJIS[platform]
     easy = difficulty.get("Easy", 0)
     medium = difficulty.get("Medium", 0)
     hard = difficulty.get("Hard", 0)
     return "\n".join(
         [
-            f"### {emoji} {platform}",
+            f"### {PLATFORM_EMOJIS[platform]} {platform}",
             "",
             f"**{solved}** solved  ",
             f"**Easy** {easy} · **Medium** {medium} · **Hard** {hard}  ",
@@ -171,18 +162,10 @@ def _platform_section(platform: str, stats: dict[str, Any]) -> str:
 
 
 def _recent_records(platform_records: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
-    rows = [
-        {**record, "platform": platform}
-        for platform, records in platform_records.items()
-        for record in _unique_records(records)
-    ]
+    rows = [{**record, "platform": platform} for platform, records in platform_records.items() for record in _unique_records(records)]
     dated = [row for row in rows if _parse_timestamp(row.get("accepted_at"))]
     undated = [row for row in rows if not _parse_timestamp(row.get("accepted_at"))]
-    dated.sort(
-        key=lambda row: _parse_timestamp(row.get("accepted_at"))
-        or datetime.min.replace(tzinfo=timezone.utc),
-        reverse=True,
-    )
+    dated.sort(key=lambda row: _parse_timestamp(row.get("accepted_at")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     return dated + undated
 
 
@@ -191,20 +174,15 @@ def _table_cell(value: Any) -> str:
 
 
 def _recent_table(platform_records: dict[str, list[dict[str, Any]]]) -> str:
-    lines = [
-        "| Platform | Problem | Language | Difficulty | Topic |",
-        "|---|---|---|---|---|",
-    ]
+    lines = ["| Platform | Problem | Language | Difficulty | Topic |", "|---|---|---|---|---|"]
     for record in _recent_records(platform_records):
-        lines.append(
-            "| {platform} | {title} | {language} | {difficulty} | {topic} |".format(
-                platform=_table_cell(record.get("platform")),
-                title=_table_cell(record.get("title")),
-                language=_table_cell(record.get("language")),
-                difficulty=_table_cell(record.get("difficulty")),
-                topic=_table_cell(record.get("primary_category")),
-            )
-        )
+        lines.append("| {platform} | {title} | {language} | {difficulty} | {topic} |".format(
+            platform=_table_cell(record.get("platform")),
+            title=_table_cell(record.get("title")),
+            language=_table_cell(record.get("language")),
+            difficulty=_table_cell(record.get("difficulty")),
+            topic=_table_cell(record.get("primary_category")),
+        ))
     if len(lines) == 2:
         lines.append("| — | No committed submission data yet | — | — | — |")
     return "\n".join(lines)
@@ -221,7 +199,6 @@ def render_dashboard() -> str:
     current_streak, best_streak = streak_stats(all_records)
     current_text = "—" if current_streak is None else str(current_streak)
     best_text = "—" if best_streak is None else str(best_streak)
-
     sections: list[str] = [
         START_MARKER,
         "<div align=\"center\">",
@@ -236,26 +213,11 @@ def render_dashboard() -> str:
         "## Platforms",
         "",
     ]
-
     for index, platform in enumerate(PLATFORMS):
         sections.append(_platform_section(platform, stats[platform]))
         if index < len(PLATFORMS) - 1:
             sections.extend(["", "---", ""])
-
-    sections.extend(
-        [
-            "",
-            "---",
-            "",
-            "## Recent Accepted Submissions",
-            "",
-            _recent_table(platform_records),
-            "",
-            END_MARKER,
-            "",
-            "</div>",
-        ]
-    )
+    sections.extend(["", "## Recent Accepted Submissions", "", _recent_table(platform_records), "", END_MARKER, "", "</div>"])
     return "\n".join(sections).strip() + "\n"
 
 

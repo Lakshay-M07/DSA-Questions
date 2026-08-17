@@ -14,9 +14,11 @@ def test_dashboard_visual_hierarchy():
 
 def test_dashboard_platform_sections_are_separated():
     dashboard = render_dashboard()
-    assert dashboard.count("---") == 2
-    assert dashboard.index("LeetCode") < dashboard.index("---") < dashboard.index("CodeChef")
-    second_separator = dashboard.index("---", dashboard.index("---") + 1)
+    separators = [line for line in dashboard.splitlines() if line.strip() == "---"]
+    assert len(separators) == 2
+    first_separator = dashboard.index("\n---\n")
+    second_separator = dashboard.index("\n---\n", first_separator + 1)
+    assert dashboard.index("LeetCode") < first_separator < dashboard.index("CodeChef")
     assert dashboard.index("CodeChef") < second_separator < dashboard.index("HackerRank")
 
 

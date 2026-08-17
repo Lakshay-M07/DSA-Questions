@@ -100,13 +100,7 @@ def platform_stats(records: list[dict[str, Any]]) -> dict[str, Any]:
     difficulty = Counter(str(r.get("difficulty")) for r in unique if r.get("difficulty") in DIFFICULTIES)
     languages = Counter(str(r.get("language")) for r in unique if r.get("language"))
     categories = Counter(str(r.get("primary_category")) for r in unique if r.get("primary_category"))
-    return {
-        "solved": len(unique),
-        "difficulty": difficulty,
-        "languages": languages,
-        "categories": categories,
-        "records": unique,
-    }
+    return {"solved": len(unique), "difficulty": difficulty, "languages": languages, "categories": categories, "records": unique}
 
 
 def _parse_timestamp(value: Any) -> datetime | None:
@@ -122,14 +116,8 @@ def _parse_timestamp(value: Any) -> datetime | None:
         return None
 
 
-def streak_stats(
-    records: list[dict[str, Any]], today: datetime | None = None
-) -> tuple[int | None, int | None]:
-    dates = {
-        parsed.astimezone(timezone.utc).date()
-        for record in records
-        if (parsed := _parse_timestamp(record.get("accepted_at")))
-    }
+def streak_stats(records: list[dict[str, Any]], today: datetime | None = None) -> tuple[int | None, int | None]:
+    dates = {parsed.astimezone(timezone.utc).date() for record in records if (parsed := _parse_timestamp(record.get("accepted_at")))}
     if not dates:
         return None, None
 
@@ -173,11 +161,12 @@ def _platform_card(platform: str, stats: dict[str, Any]) -> str:
     easy = difficulty.get("Easy", 0)
     medium = difficulty.get("Medium", 0)
     hard = difficulty.get("Hard", 0)
+    accepted_label = "accepted problem" if solved == 1 else "accepted problems"
     return "\n".join(
         [
             f'<div style="border-left:4px solid {accent}; padding:18px 20px; margin:12px 0; background:#161b22; border-radius:10px;">',
             f'<h3 style="margin:0 0 4px;">{platform}</h3>',
-            f'<p style="margin:0 0 12px; opacity:.75;">{solved} accepted problem{\"s\" if solved != 1 else \"\"}</p>',
+            f'<p style="margin:0 0 12px; opacity:.75;">{solved} {accepted_label}</p>',
             f'<p style="margin:0 0 10px;"><strong style="color:#16c60c;">Easy {easy}</strong> &nbsp;·&nbsp; <strong style="color:#f0b90b;">Medium {medium}</strong> &nbsp;·&nbsp; <strong style="color:#ef4444;">Hard {hard}</strong></p>',
             f'<p style="margin:0 0 6px;"><strong>Languages</strong> &nbsp; {_format_counter(stats["languages"])}</p>',
             f'<p style="margin:0;"><strong>Topics</strong> &nbsp; {_format_counter(stats["categories"])}</p>',
@@ -203,83 +192,54 @@ def _recent_records(platform_records: dict[str, list[dict[str, Any]]]) -> list[d
 
 
 def _recent_table(platform_records: dict[str, list[dict[str, Any]]]) -> str:
-    rows = [
+    lines = [
         "| Platform | Problem | Language | Difficulty | Topic |",
         "|---|---|---|---|---|",
     ]
     for record in _recent_records(platform_records):
-        rows.append(
-            "| {platform} | {title} | {language} | {difficulty} | {category} |".format(
+        lines.append(
+            "| {platform} | {title} | {language} | {difficulty} | {topic} |".format(
                 platform=record.get("platform", "—"),
                 title=record.get("title", "—"),
                 language=record.get("language", "—"),
                 difficulty=record.get("difficulty") or "—",
-                category=record.get("primary_category") or "—",
+                topic=record.get("primary_category") or "—",
             )
         )
-    if len(rows) == 2:
-        rows.append("| — | No committed submission data yet | — | — | — |")
-    return "\n".join(rows)
-
-
-def _metric_row(value: int | str, label: str) -> str:
-    return f"**{value}**  
-{label}"
+    if len(lines) == 2:
+        lines.append("| — | No committed submission data yet | — | — | — |")
+    return "\n".join(lines)
 
 
 def render_dashboard() -> str:
     platform_records = discover_platform_records()
-    stats = {
-        platform: platform_stats(platform_records.get(platform, [])) for platform in PLATFORMS
-    }
-    all_records = [
-        record
-        for records in platform_records.values()
-        for record in _unique_records(records)
-    ]
-    total = len(
-        {
-            (
-                str(record.get("platform")),
-                str(record.get("problem_id")),
-                str(record.get("language")),
-            )
-            for record in all_records
-        }
-    )
+    stats = {platform: platform_stats(platform_records.get(platform, [])) for platform in PLATFORMS}
+    all_records = [record for records in platform_records.values() for record in _unique_records(records)]
+    total = len({(str(r.get("platform")), str(r.get("problem_id")), str(r.get("language"))) for r in all_records})
     all_difficulty = Counter()
     for item in stats.values():
         all_difficulty.update(item["difficulty"])
-
     current_streak, best_streak = streak_stats(all_records)
     current_text = "—" if current_streak is None else str(current_streak)
     best_text = "—" if best_streak is None else str(best_streak)
-
-    metrics = [
-        _metric_row(total, "Problems"),
-        _metric_row(all_difficulty.get("Easy", 0), "Easy"),
-        _metric_row(all_difficulty.get("Medium", 0), "Medium"),
-        _metric_row(all_difficulty.get("Hard", 0), "Hard"),
-        _metric_row(current_text, "Current Streak"),
-        _metric_row(best_text, "Best Streak"),
-    ]
 
     return "\n".join(
         [
             START_MARKER,
             "<div align=\"center\">",
-            "<h1>📊 DSA Progress Dashboard</h1>",
-            "<p><strong>LeetCode · CodeChef · HackerRank</strong></p>",
-            "<p>Accepted solutions tracked automatically from this repository.</p>",
-            "</div>",
+            "## 📊 Progress Dashboard",
             "",
-            "| | | | | | |",
-            "|---|---|---|---|---|---|",
-            *(f"| {metrics[i]} |" for i in range(6)),
+            f"### Total Progress — **{total} problems solved**",
+            "",
+            f"**Easy** {all_difficulty.get('Easy', 0)} · **Medium** {all_difficulty.get('Medium', 0)} · **Hard** {all_difficulty.get('Hard', 0)}",
+            "",
+            f"🔥 **Current streak:** {current_text} days &nbsp;&nbsp; 🏆 **Best streak:** {best_text} days",
+            "",
+            "</div>",
             "",
             "## Platforms",
             "",
-            *(_platform_card(platform, stats[platform]) for platform in PLATFORMS),
+            *[_platform_card(platform, stats[platform]) for platform in PLATFORMS],
             "",
             "## Recent Accepted Submissions",
             "",
@@ -296,9 +256,7 @@ def update_readme(readme: str, dashboard: str) -> str:
     if has_start or has_end:
         if not (has_start and has_end):
             raise ValueError("README dashboard markers are incomplete")
-        pattern = re.compile(
-            re.escape(START_MARKER) + r".*?" + re.escape(END_MARKER), re.S
-        )
+        pattern = re.compile(re.escape(START_MARKER) + r".*?" + re.escape(END_MARKER), re.S)
         return pattern.sub(dashboard.strip(), readme, count=1)
     return readme.rstrip() + "\n\n" + dashboard
 

@@ -1,3 +1,5 @@
+<div align="center">
+
 <!-- DASHBOARD:START -->
 ## 📊 Progress Dashboard
 
@@ -52,6 +54,8 @@
 | CodeChef | Sum of Array elements | C++ | Easy | Array |
 
 <!-- DASHBOARD:END -->
+
+</div>
 
 # DSA Questions
 

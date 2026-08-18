@@ -8,7 +8,7 @@
 
 **Easy** 3 · **Medium** 0 · **Hard** 0
 
-🔥 **Current streak:** 2 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
+🔥 **Current streak:** 0 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
 
 ## Platforms
 
@@ -46,6 +46,8 @@
 | CodeChef | Sum of Array elements | C++ | Easy | Array |
 
 <!-- DASHBOARD:END -->
+
+</div>
 
 </div>
 

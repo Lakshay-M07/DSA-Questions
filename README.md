@@ -205,6 +205,8 @@
 
 </div>
 
+</div>
+
 # DSA Questions
 
 A GitHub-native archive for accepted Data Structures & Algorithms submissions from **LeetCode, CodeChef, and HackerRank**.

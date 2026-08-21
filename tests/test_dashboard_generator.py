@@ -99,3 +99,9 @@ def test_update_readme_replaces_only_generated_section():
     assert "## Usage" in result
     assert "old" not in result
     assert "new" in result
+
+
+def test_rendered_dashboard_is_stable_when_reapplied():
+    dashboard = render_dashboard()
+    readme = "# Repo\n\n" + dashboard + "\n\n## Usage\n"
+    assert update_readme(readme, dashboard) == readme

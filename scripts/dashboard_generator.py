@@ -200,8 +200,6 @@ def render_dashboard() -> str:
     current_text = "—" if current_streak is None else str(current_streak)
     best_text = "—" if best_streak is None else str(best_streak)
     sections: list[str] = [
-        START_MARKER,
-        "<div align=\"center\">",
         "## 📊 Progress Dashboard",
         "",
         f"### Total Progress — **{total} problems solved**",
@@ -217,7 +215,7 @@ def render_dashboard() -> str:
         sections.append(_platform_section(platform, stats[platform]))
         if index < len(PLATFORMS) - 1:
             sections.extend(["", "---", ""])
-    sections.extend(["", "## Recent Accepted Submissions", "", _recent_table(platform_records), "", END_MARKER])
+    sections.extend(["", "## Recent Accepted Submissions", "", _recent_table(platform_records)])
     return "\n".join(sections).strip() + "\n"
 
 
@@ -227,12 +225,13 @@ def update_readme(readme: str, dashboard: str) -> str:
     if has_start or has_end:
         if not (has_start and has_end):
             raise ValueError("README dashboard markers are incomplete")
-        pattern = re.compile(re.escape(START_MARKER) + r".*?" + re.escape(END_MARKER), re.S)
+        pattern = re.compile(re.escape(START_MARKER) + r"\n(?P<body>.*?)\n" + re.escape(END_MARKER), re.S)
         match = pattern.search(readme)
         if not match:
             raise ValueError("README dashboard markers could not be resolved")
-        return readme[:match.start()] + dashboard.strip() + readme[match.end():]
-    return readme.rstrip() + "\n\n" + dashboard
+        replacement = f"{START_MARKER}\n{dashboard.rstrip()}\n{END_MARKER}"
+        return readme[:match.start()] + replacement + readme[match.end():]
+    return readme.rstrip() + f"\n\n{START_MARKER}\n{dashboard.rstrip()}\n{END_MARKER}\n"
 
 
 def generate_readme() -> str:

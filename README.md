@@ -12,7 +12,7 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 
 **Easy** 3 · **Medium** 0 · **Hard** 0
 
-🔥 **Current streak:** 2 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
+🔥 **Current streak:** 0 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
 
 ## Platforms
 
@@ -41,8 +41,6 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 **Languages:** Python: **1**  
 **Topics:** Ai: **1**
 
----
-
 ## Recent Accepted Submissions
 
 | Platform | Problem | Language | Difficulty | Topic |
@@ -52,4 +50,6 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 | CodeChef | Sum of Array elements | C++ | Easy | Array |
 
 <!-- DASHBOARD:END -->
+
+</div>
 </div>

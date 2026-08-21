@@ -4,15 +4,15 @@ A GitHub-native archive for accepted Data Structures & Algorithms submissions fr
 
 The repository is intentionally automated: GitHub Actions periodically checks the configured platforms, imports eligible accepted submissions, stores the source in a consistent structure, and refreshes the dashboard below.
 
-<!-- DASHBOARD:START -->
 <div align="center">
+<!-- DASHBOARD:START -->
 ## 📊 Progress Dashboard
 
 ### Total Progress — **3 problems solved**
 
 **Easy** 3 · **Medium** 0 · **Hard** 0
 
-🔥 **Current streak:** 0 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
+🔥 **Current streak:** 2 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
 
 ## Platforms
 
@@ -50,5 +50,4 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 | CodeChef | Sum of Array elements | C++ | Easy | Array |
 
 <!-- DASHBOARD:END -->
-
 </div>

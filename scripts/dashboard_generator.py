@@ -217,7 +217,7 @@ def render_dashboard() -> str:
         sections.append(_platform_section(platform, stats[platform]))
         if index < len(PLATFORMS) - 1:
             sections.extend(["", "---", ""])
-    sections.extend(["", "## Recent Accepted Submissions", "", _recent_table(platform_records), "", END_MARKER, "", "</div>"])
+    sections.extend(["", "## Recent Accepted Submissions", "", _recent_table(platform_records), "", END_MARKER])
     return "\n".join(sections).strip() + "\n"
 
 
@@ -231,11 +231,7 @@ def update_readme(readme: str, dashboard: str) -> str:
         match = pattern.search(readme)
         if not match:
             raise ValueError("README dashboard markers could not be resolved")
-        existing = match.group(0)
-        replacement = dashboard.strip()
-        if existing == replacement:
-            return readme
-        return readme[:match.start()] + replacement + readme[match.end():]
+        return readme[:match.start()] + dashboard.strip() + readme[match.end():]
     return readme.rstrip() + "\n\n" + dashboard
 
 

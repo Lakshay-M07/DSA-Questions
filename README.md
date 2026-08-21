@@ -52,4 +52,6 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 <!-- DASHBOARD:END -->
 
 </div>
+
+</div>
 </div>

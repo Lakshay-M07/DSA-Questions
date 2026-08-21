@@ -6,7 +6,6 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 
 <div align="center">
 <!-- DASHBOARD:START -->
-<div align="center">
 ## 📊 Progress Dashboard
 
 ### Total Progress — **3 problems solved**
@@ -33,8 +32,6 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 **Languages:** C++: **1**  
 **Topics:** Array: **1**
 
----
-
 ### 🟩 HackerRank
 
 **1** solved  
@@ -49,6 +46,5 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 | HackerRank | Say "Hello, World!" With Python | Python | Easy | Ai |
 | LeetCode | Two Sum | C++ | Easy | Array |
 | CodeChef | Sum of Array elements | C++ | Easy | Array |
-
 <!-- DASHBOARD:END -->
 </div>

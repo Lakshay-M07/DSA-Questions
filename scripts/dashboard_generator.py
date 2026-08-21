@@ -228,7 +228,14 @@ def update_readme(readme: str, dashboard: str) -> str:
         if not (has_start and has_end):
             raise ValueError("README dashboard markers are incomplete")
         pattern = re.compile(re.escape(START_MARKER) + r".*?" + re.escape(END_MARKER), re.S)
-        return pattern.sub(dashboard.strip(), readme, count=1)
+        match = pattern.search(readme)
+        if not match:
+            raise ValueError("README dashboard markers could not be resolved")
+        existing = match.group(0)
+        replacement = dashboard.strip()
+        if existing == replacement:
+            return readme
+        return readme[:match.start()] + replacement + readme[match.end():]
     return readme.rstrip() + "\n\n" + dashboard
 
 

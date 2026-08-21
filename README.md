@@ -6,13 +6,14 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 
 <div align="center">
 <!-- DASHBOARD:START -->
+<div align="center">
 ## 📊 Progress Dashboard
 
 ### Total Progress — **3 problems solved**
 
 **Easy** 3 · **Medium** 0 · **Hard** 0
 
-🔥 **Current streak:** 2 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
+🔥 **Current streak:** 0 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
 
 ## Platforms
 

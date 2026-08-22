@@ -62,8 +62,8 @@ def test_hackerrank_committed_metadata_is_discovered():
 
 def test_dashboard_contains_required_sections_and_no_solution_code():
     dashboard = render_dashboard()
-    assert START_MARKER in dashboard
-    assert END_MARKER in dashboard
+    assert START_MARKER not in dashboard
+    assert END_MARKER not in dashboard
     assert "Progress Dashboard" in dashboard
     assert "LeetCode" in dashboard
     assert "CodeChef" in dashboard
@@ -93,15 +93,17 @@ def test_dashboard_uses_readable_metric_labels():
 
 def test_update_readme_replaces_only_generated_section():
     readme = "# Repo\n\nManual docs\n\n" + START_MARKER + "\nold\n" + END_MARKER + "\n\n## Usage\n"
-    dashboard = START_MARKER + "\nnew\n" + END_MARKER
+    dashboard = "new\n"
     result = update_readme(readme, dashboard)
     assert "Manual docs" in result
     assert "## Usage" in result
     assert "old" not in result
     assert "new" in result
+    assert result.count(START_MARKER) == 1
+    assert result.count(END_MARKER) == 1
 
 
 def test_rendered_dashboard_is_stable_when_reapplied():
     dashboard = render_dashboard()
-    readme = "# Repo\n\n" + dashboard + "\n\n## Usage\n"
+    readme = "# Repo\n\n" + START_MARKER + "\n" + dashboard.rstrip() + "\n" + END_MARKER + "\n\n## Usage\n"
     assert update_readme(readme, dashboard) == readme

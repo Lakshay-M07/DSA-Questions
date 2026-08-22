@@ -32,6 +32,8 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 **Languages:** C++: **1**  
 **Topics:** Array: **1**
 
+---
+
 ### 🟩 HackerRank
 
 **1** solved  

@@ -53,5 +53,23 @@
     "difficulty_rating": null,
     "source_hash": "5625bfd598f463f446bc87469fc5ae7b8d8362535c2b3161fa995b5a9cde9d57",
     "solution_path": "CodeChef/C++/Array/Medium/DSACPR40/DSACPR40.cpp"
+  },
+  "codechef::JWHEFQ351::c": {
+    "platform": "CodeChef",
+    "problem_id": "JWHEFQ351",
+    "title": "Implementation - Binary Tree Practice Coding Problem",
+    "language": "C",
+    "source": "#include <stdio.h>\n#include <stdlib.h>\nstruct node{\n    int val;\n    struct node* left;\n    struct node* right;\n};\nstruct node* node_new(int val){\n    struct node* temp = (struct node*)malloc(sizeof(struct node));\n    temp->val = val;\n    temp->left = NULL;\n    temp->right = NULL;\n    return temp;\n}\nint main() {\n    // Creating our root node\n    struct node* root = node_new(0);\n    // Assigning node '1' to the left of '0'\n    root->left = node_new(1);\n    // Assigning node '2' to the right of '0'\n    root->right = node_new(2);\n    // Similarly for the child nodes of the left(1)\n    root->left->left = node_new(3);\n    root->left->right = node_new(4);\n    printf(\"The tree is created!\\n\");\n    return 0;\n}",
+    "accepted_at": "5 hours ago",
+    "difficulty": "Easy",
+    "difficulty_source": "codechef_source_classifier",
+    "primary_category": "Other",
+    "tags": [
+      "Other"
+    ],
+    "submission_id": "1382714427",
+    "difficulty_rating": null,
+    "source_hash": "69dbbd1f092ea1ced73aea3fff3ea67d78a461832a5023393e3a8d20f8130b2b",
+    "solution_path": "CodeChef/C/Other/Easy/JWHEFQ351/JWHEFQ351.c"
   }
 }

@@ -8,9 +8,9 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 <!-- DASHBOARD:START -->
 ## 📊 Progress Dashboard
 
-### Total Progress — **3 problems solved**
+### Total Progress — **4 problems solved**
 
-**Easy** 3 · **Medium** 0 · **Hard** 0
+**Easy** 3 · **Medium** 1 · **Hard** 0
 
 🔥 **Current streak:** 0 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
 
@@ -27,10 +27,10 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 
 ### 🟪 CodeChef
 
-**1** solved  
-**Easy** 1 · **Medium** 0 · **Hard** 0  
-**Languages:** C++: **1**  
-**Topics:** Array: **1**
+**2** solved  
+**Easy** 1 · **Medium** 1 · **Hard** 0  
+**Languages:** C++: **2**  
+**Topics:** Array: **2**
 
 ---
 
@@ -48,5 +48,6 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 | HackerRank | Say "Hello, World!" With Python | Python | Easy | Ai |
 | LeetCode | Two Sum | C++ | Easy | Array |
 | CodeChef | Sum of Array elements | C++ | Easy | Array |
+| CodeChef | Insertion in an array Practice Coding Problem | C++ | Medium | Array |
 <!-- DASHBOARD:END -->
 </div>

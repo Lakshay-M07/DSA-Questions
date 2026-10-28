@@ -8,9 +8,9 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 <!-- DASHBOARD:START -->
 ## 📊 Progress Dashboard
 
-### Total Progress — **4 problems solved**
+### Total Progress — **5 problems solved**
 
-**Easy** 3 · **Medium** 1 · **Hard** 0
+**Easy** 4 · **Medium** 1 · **Hard** 0
 
 🔥 **Current streak:** 0 days &nbsp;&nbsp; 🏆 **Best streak:** 2 days
 
@@ -27,10 +27,10 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 
 ### 🟪 CodeChef
 
-**2** solved  
-**Easy** 1 · **Medium** 1 · **Hard** 0  
-**Languages:** C++: **2**  
-**Topics:** Array: **2**
+**3** solved  
+**Easy** 2 · **Medium** 1 · **Hard** 0  
+**Languages:** C++: **2** · C: **1**  
+**Topics:** Array: **2** · Other: **1**
 
 ---
 
@@ -49,5 +49,6 @@ The repository is intentionally automated: GitHub Actions periodically checks th
 | LeetCode | Two Sum | C++ | Easy | Array |
 | CodeChef | Sum of Array elements | C++ | Easy | Array |
 | CodeChef | Insertion in an array Practice Coding Problem | C++ | Medium | Array |
+| CodeChef | Implementation - Binary Tree Practice Coding Problem | C | Easy | Other |
 <!-- DASHBOARD:END -->
 </div>
